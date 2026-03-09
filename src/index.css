@@ -1,0 +1,59 @@
+/* ============================================================
+   index.css — 글로벌 스타일 파일
+   
+   HTML 원본에서는 <style> 태그 안에 있던 CSS
+   React에서는 별도 CSS 파일로 분리
+   
+   @tailwind 지시어:
+   - base:       Tailwind의 기본 리셋 스타일
+   - components: Tailwind의 컴포넌트 스타일
+   - utilities:  bg-pink-500, flex, p-4 같은 유틸리티 클래스
+   
+   HTML 원본에서는 CDN (<script src="cdn.tailwindcss.com">)으로 불러왔지만,
+   React 프로젝트에서는 npm install tailwindcss로 설치 후 
+   이 파일에서 @tailwind 지시어로 불러옴
+============================================================ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   전체 폰트 설정
+   HTML 원본의 body { font-family: ... } 와 동일
+============================================================ */
+body {
+  font-family: 'Inter', 'Noto Sans KR', sans-serif;
+}
+
+/* ============================================================
+   스크롤바 숨기기 (카테고리 탭 가로 스크롤용)
+   HTML 원본과 동일한 코드
+============================================================ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================================
+   글래스모피즘 네비게이션
+   HTML 원본과 동일
+============================================================ */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+}
+
+/* ============================================================
+   카드 호버 애니메이션
+   HTML 원본과 동일
+============================================================ */
+.card-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+  transform: translateY(-8px);
+}
