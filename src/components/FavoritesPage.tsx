@@ -1,11 +1,5 @@
 // ============================================================
-// src/components/FavoritesPage.tsx — 즐겨찾기함 페이지
-//
-// 기능:
-//   - 내가 즐겨찾기한 사이트만 표시
-//   - 카테고리별 필터 버튼
-//   - 즐겨찾기 내 검색
-//   - 뒤로가기 → 홈으로 복귀
+// src/components/FavoritesPage.tsx — 즐겨찾기함 (curit 브랜딩)
 // ============================================================
 
 import { useState, useMemo } from 'react';
@@ -13,22 +7,20 @@ import SiteCard from './SiteCard';
 import type { CategoryWithSites } from '../types';
 
 interface FavoritesPageProps {
-  websiteData: CategoryWithSites[];    // 전체 카테고리+사이트 데이터
-  favoriteIds: Set<number>;            // 즐겨찾기된 site ID 목록
+  websiteData: CategoryWithSites[];
+  favoriteIds: Set<number>;
   userId: string | null;
   onToggleFavorite: (siteId: number) => void;
   onLoginRequired: () => void;
-  onBack: () => void;                  // 홈으로 돌아가기
+  onBack: () => void;
 }
 
 export default function FavoritesPage({ websiteData, favoriteIds, userId, onToggleFavorite, onLoginRequired, onBack }: FavoritesPageProps) {
   const [activeFilter, setActiveFilter] = useState('전체');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 즐겨찾기된 사이트만 추출하여 카테고리별로 그룹화
   const favoritedData = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
-
     return websiteData
       .map((group) => ({
         ...group,
@@ -46,7 +38,6 @@ export default function FavoritesPage({ websiteData, favoriteIds, userId, onTogg
       );
   }, [websiteData, favoriteIds, searchTerm, activeFilter]);
 
-  // 즐겨찾기가 있는 카테고리만 필터 버튼에 표시
   const availableCategories = useMemo(() => {
     return websiteData.filter((group) =>
       group.items.some((item) => favoriteIds.has(item.id))
@@ -61,23 +52,21 @@ export default function FavoritesPage({ websiteData, favoriteIds, userId, onTogg
       <div className="glass-nav fixed top-0 inset-x-0 z-[100] border-b border-pink-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
-            {/* 뒤로가기 버튼 */}
             <button onClick={onBack} className="p-2 rounded-xl hover:bg-pink-50 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
             </button>
-            <h1 className="text-xl font-black text-pink-900">즐겨찾기함</h1>
+            <h1 className="text-xl font-black text-pink-900">내 컬렉션</h1>
             <span className="text-pink-300 text-sm font-bold">{totalFavorites}개</span>
 
-            {/* 즐겨찾기 내 검색 */}
             <div className="flex-1 max-w-md ml-auto relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-300">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </div>
               <input
                 type="text"
-                placeholder="즐겨찾기 내 검색..."
+                placeholder="컬렉션에서 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-pink-50/50 border border-transparent focus:bg-white focus:border-pink-300 rounded-xl pl-10 pr-4 py-2.5 text-sm transition-all outline-none placeholder:text-pink-200"
@@ -85,7 +74,6 @@ export default function FavoritesPage({ websiteData, favoriteIds, userId, onTogg
             </div>
           </div>
 
-          {/* 카테고리 필터 버튼 */}
           <div className="flex items-center gap-2 mt-4 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveFilter('전체')}
@@ -124,10 +112,12 @@ export default function FavoritesPage({ websiteData, favoriteIds, userId, onTogg
               </svg>
             </div>
             <h3 className="text-2xl font-black text-slate-900">
-              {totalFavorites === 0 ? '아직 즐겨찾기한 사이트가 없어요' : '검색 결과가 없어요'}
+              {totalFavorites === 0 ? '아직 담아둔 사이트가 없어요.' : '검색 결과가 없어요.'}
             </h3>
             <p className="text-pink-300 mt-3 font-medium">
-              {totalFavorites === 0 ? '홈에서 마음에 드는 사이트의 하트를 눌러보세요!' : '다른 키워드로 검색해 보세요.'}
+              {totalFavorites === 0
+                ? '마음에 드는 사이트에 ♥를 눌러 나만의 컬렉션을 만들어보세요.'
+                : '다른 키워드로 검색해 보세요.'}
             </p>
           </div>
         ) : (
