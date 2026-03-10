@@ -1,111 +1,160 @@
 // ============================================================
-// src/App.tsx — Supabase에서 데이터를 가져오는 메인 페이지
+// src/App.tsx — 메인 페이지 (v2)
 //
-// 이전 버전과의 차이:
-//   이전: import { websiteData } from './data/sites';  ← 하드코딩
-//   지금: useEffect + supabase.from('sites').select()  ← DB에서 가져옴
-//
-// 새로 등장하는 개념:
-//   useEffect: 컴포넌트가 화면에 나타날 때 "한 번" 실행하는 코드
-//   → API 호출, 데이터 불러오기 등에 사용
-//   → "페이지가 뜨면 DB에서 데이터 가져와" 라는 뜻
+// v1 대비 추가된 기능:
+//   - Supabase Auth (로그인/회원가입)
+//   - 프로필 (닉네임, 아바타)
+//   - 즐겨찾기 (하트 버튼 + 즐겨찾기함 페이지)
+//   - 스크롤 시 카테고리 하이라이트 (Intersection Observer)
+//   - 카테고리 클릭 → 스크롤 이동 (필터링 대신)
+//   - 유사 검색어 (tags 컬럼 활용)
 // ============================================================
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { supabase } from './lib/supabase';
+import type { CategoryRow, SiteItem, CategoryWithSites, Profile } from './types';
+
 import SearchBar from './components/SearchBar';
 import CategoryTabs from './components/CategoryTabs';
 import SiteCard from './components/SiteCard';
-import { supabase } from './lib/supabase';
-import { CategoryRow, SiteItem, CategoryWithSites } from './types';
+import AuthModal from './components/AuthModal';
+import ProfileMenu from './components/ProfileMenu';
+import FavoritesPage from './components/FavoritesPage';
+import { useActiveSection } from './hooks/useActiveSection';
 
 export default function App() {
   // ============================================================
-  // 상태(State) 정의
+  // 상태(State)
   // ============================================================
-  const [activeCategory, setActiveCategory] = useState('전체');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // DB에서 가져온 데이터를 저장할 상태
+  // DB 데이터
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [sites, setSites] = useState<SiteItem[]>([]);
-
-  // 로딩 상태: 데이터를 가져오는 중인지
   const [loading, setLoading] = useState(true);
-
-  // 에러 상태: 데이터 가져오기 실패 시
   const [error, setError] = useState<string | null>(null);
 
+  // 인증 관련
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // 즐겨찾기
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const [showFavorites, setShowFavorites] = useState(false);
+
   // ============================================================
-  // useEffect — 페이지가 처음 뜰 때 DB에서 데이터 가져오기
-  //
-  // useEffect(실행할함수, [의존성배열]);
-  //   → 의존성 배열이 빈 배열 []이면: 처음 한 번만 실행
-  //   → 의존성 배열에 값이 있으면: 그 값이 바뀔 때마다 실행
-  //
-  // async/await란?
-  //   → DB에서 데이터를 가져오는 건 시간이 걸리는 작업
-  //   → await = "이 작업이 끝날 때까지 기다려"
-  //   → async = "이 함수 안에서 await를 쓸 거야"라는 선언
+  // 데이터 로딩 (카테고리 + 사이트)
   // ============================================================
   useEffect(() => {
     async function fetchData() {
       try {
-        // DB에서 카테고리 목록 가져오기 (sort_order 순으로 정렬)
         const { data: catData, error: catError } = await supabase
-          .from('categories')
-          .select('*')
-          .order('sort_order');
-
+          .from('categories').select('*').order('sort_order');
         if (catError) throw catError;
-        // throw: 에러를 던짐 → 아래 catch 블록으로 이동
 
-        // DB에서 사이트 목록 가져오기 (sort_order 순으로 정렬)
         const { data: siteData, error: siteError } = await supabase
-          .from('sites')
-          .select('*')
-          .order('sort_order');
-
+          .from('sites').select('*').order('sort_order');
         if (siteError) throw siteError;
 
-        // 가져온 데이터를 상태에 저장
         setCategories(catData || []);
         setSites(siteData || []);
       } catch (err) {
-        // 에러 발생 시 에러 메시지 저장
         setError('데이터를 불러오는 데 실패했습니다.');
         console.error(err);
       } finally {
-        // 성공이든 실패든 로딩 상태 해제
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
-  // ↑ [] 빈 배열: 컴포넌트가 처음 마운트될 때 한 번만 실행
 
   // ============================================================
-  // 카테고리 + 사이트를 합쳐서 화면 표시용 데이터 만들기
+  // 인증 상태 감지
   //
-  // DB에서는 categories와 sites가 별도 테이블이지만,
-  // 화면에 표시할 때는 "카테고리별로 사이트를 묶은" 형태가 필요함
-  //
-  // 이전 버전의 websiteData와 같은 구조로 변환:
-  //   [{ name: "폰트...", slug: "font", items: [사이트1, 사이트2, ...] }]
+  // onAuthStateChange: 로그인/로그아웃 시 자동으로 호출됨
+  //   → 소셜 로그인 후 리다이렉트 복귀 시에도 감지
+  // ============================================================
+  useEffect(() => {
+    // 현재 세션 확인
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        loadProfile(session.user.id);
+        loadFavorites(session.user.id);
+      }
+    });
+
+    // 인증 상태 변화 구독
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        loadProfile(session.user.id);
+        loadFavorites(session.user.id);
+      } else {
+        setUserId(null);
+        setProfile(null);
+        setFavoriteIds(new Set());
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 프로필 로드
+  const loadProfile = async (uid: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    if (data) setProfile(data);
+  };
+
+  // 즐겨찾기 목록 로드
+  const loadFavorites = async (uid: string) => {
+    const { data } = await supabase.from('favorites').select('site_id').eq('user_id', uid);
+    if (data) {
+      setFavoriteIds(new Set(data.map((f) => f.site_id)));
+    }
+  };
+
+  // ============================================================
+  // 즐겨찾기 토글 (추가/제거 후 로컬 상태 즉시 반영)
+  // ============================================================
+  const handleToggleFavorite = useCallback((siteId: number) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(siteId)) {
+        next.delete(siteId);
+      } else {
+        next.add(siteId);
+      }
+      return next;
+    });
+  }, []);
+
+  // ============================================================
+  // 카테고리 + 사이트 결합
   // ============================================================
   const websiteData: CategoryWithSites[] = useMemo(() => {
     return categories.map((cat) => ({
       ...cat,
       items: sites.filter((site) => site.category_id === cat.id),
-      // ↑ 이 카테고리에 속하는 사이트만 필터링
     }));
   }, [categories, sites]);
 
   // ============================================================
-  // 검색 + 카테고리 필터링 (이전 버전과 동일한 로직)
+  // 검색 필터링 (v2: tags 컬럼도 검색 대상에 포함)
+  //
+  // 유사 검색어 동작 원리:
+  //   눈누의 tags = "무료폰트,한글폰트,글꼴,서체,상업용"
+  //   → 사용자가 "글꼴" 검색 시 → tags에 "글꼴"이 포함 → 눈누가 결과에 표시
+  //   → name이나 note에 "글꼴"이 없어도 검색됨!
+  //
+  // v1에서는 name + note만 검색했지만,
+  // v2에서는 name + note + tags를 모두 검색
   // ============================================================
   const filteredData = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
+
+    if (!lowerSearch) return websiteData; // 검색어 없으면 전체 표시
 
     return websiteData
       .map((group) => ({
@@ -113,33 +162,29 @@ export default function App() {
         items: group.items.filter(
           (item) =>
             item.name.toLowerCase().includes(lowerSearch) ||
-            (item.note && item.note.toLowerCase().includes(lowerSearch))
+            (item.note && item.note.toLowerCase().includes(lowerSearch)) ||
+            (item.tags && item.tags.toLowerCase().includes(lowerSearch))
+            // ↑ tags 검색 추가! 유사 키워드까지 매칭
         ),
       }))
-      .filter(
-        (group) =>
-          (activeCategory === '전체' || group.name === activeCategory) &&
-          group.items.length > 0
-      );
-  }, [searchTerm, activeCategory, websiteData]);
+      .filter((group) => group.items.length > 0);
+  }, [searchTerm, websiteData]);
 
   // ============================================================
-  // 카테고리 선택 핸들러
+  // Intersection Observer: 스크롤 시 현재 보이는 섹션 감지
+  //
+  // sectionSlugs: ["font", "design-resource", "image-edit", ...]
+  // activeSectionId: 현재 화면에 보이는 섹션의 slug
+  // → CategoryTabs에 전달하여 해당 탭 하이라이트
   // ============================================================
-  const handleCategorySelect = (category: string, id?: string) => {
-    setActiveCategory(category);
-    if (id) {
-      setTimeout(() => {
-        const el = document.getElementById(id);
-        if (el) window.scrollTo({ top: el.offsetTop - 180, behavior: 'smooth' });
-      }, 10);
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
+  const sectionSlugs = useMemo(
+    () => websiteData.map((g) => g.slug),
+    [websiteData]
+  );
+  const activeSectionId = useActiveSection(sectionSlugs);
 
   // ============================================================
-  // 로딩 화면 — DB에서 데이터를 가져오는 동안 표시
+  // 로딩/에러 화면
   // ============================================================
   if (loading) {
     return (
@@ -152,19 +197,13 @@ export default function App() {
     );
   }
 
-  // ============================================================
-  // 에러 화면 — DB 연결 실패 시 표시
-  // ============================================================
   if (error) {
     return (
       <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 font-bold text-lg mb-2">오류 발생</p>
           <p className="text-slate-500">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
-          >
+          <button onClick={() => window.location.reload()} className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors">
             다시 시도
           </button>
         </div>
@@ -173,15 +212,35 @@ export default function App() {
   }
 
   // ============================================================
-  // 메인 UI (이전 버전과 거의 동일)
+  // 즐겨찾기함 페이지 (showFavorites가 true일 때)
+  // ============================================================
+  if (showFavorites) {
+    return (
+      <FavoritesPage
+        websiteData={websiteData}
+        favoriteIds={favoriteIds}
+        userId={userId}
+        onToggleFavorite={handleToggleFavorite}
+        onLoginRequired={() => setShowAuthModal(true)}
+        onBack={() => setShowFavorites(false)}
+      />
+    );
+  }
+
+  // ============================================================
+  // 메인 UI
   // ============================================================
   return (
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
 
+      {/* 로그인/회원가입 모달 */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+
       {/* 네비게이션 */}
       <nav className="fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            {/* 로고 */}
             <div
               className="flex items-center gap-3 cursor-pointer shrink-0"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -193,18 +252,22 @@ export default function App() {
               </div>
               <h1 className="text-2xl font-black text-pink-900 tracking-tighter lowercase">s archive</h1>
             </div>
+
+            {/* 검색바 */}
             <SearchBar value={searchTerm} onChange={setSearchTerm} />
+
+            {/* 프로필 메뉴 (로그인 버튼 또는 아바타) */}
+            <ProfileMenu
+              profile={profile}
+              onLoginClick={() => setShowAuthModal(true)}
+              onFavoritesClick={() => setShowFavorites(true)}
+            />
           </div>
 
-          {/* CategoryTabs에 전달하는 데이터 형태를 맞춰줌 */}
+          {/* 카테고리 탭 (v2: 스크롤 기반 하이라이트) */}
           <CategoryTabs
-            categories={websiteData.map((g) => ({
-              category: g.name,
-              id: g.slug,
-              items: g.items.map((s) => ({ name: s.name, url: s.url, note: s.note || '' })),
-            }))}
-            activeCategory={activeCategory}
-            onSelect={handleCategorySelect}
+            categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
+            activeSectionId={activeSectionId}
           />
         </div>
       </nav>
@@ -240,7 +303,7 @@ export default function App() {
               </svg>
             </div>
             <h3 className="text-2xl font-black text-slate-900">찾으시는 결과가 없네요</h3>
-            <p className="text-pink-300 mt-3 font-medium">다른 카테고리를 둘러보거나 검색어를 확인해 주세요.</p>
+            <p className="text-pink-300 mt-3 font-medium">다른 키워드로 검색해 보세요.</p>
           </div>
         ) : (
           filteredData.map((group) => (
@@ -251,7 +314,14 @@ export default function App() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {group.items.map((item) => (
-                  <SiteCard key={item.id} item={{ name: item.name, url: item.url, note: item.note || '' }} />
+                  <SiteCard
+                    key={item.id}
+                    item={item}
+                    isFavorited={favoriteIds.has(item.id)}
+                    userId={userId}
+                    onToggleFavorite={handleToggleFavorite}
+                    onLoginRequired={() => setShowAuthModal(true)}
+                  />
                 ))}
               </div>
             </section>

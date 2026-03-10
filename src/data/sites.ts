@@ -11,9 +11,7 @@
 //   import { websiteData } from '../data/sites';
 // ============================================================
 
-import { Category } from '../types';
-// ↑ 위에서 정의한 Category 타입을 가져옴
-//   Category[] = Category 타입의 배열
+
 
 /**
  * 전체 사이트 데이터
@@ -23,7 +21,7 @@ import { Category } from '../types';
  * - items의 각 요소가 { name, url, note } 구조인지 검증
  * - 오타나 누락된 필드가 있으면 빨간 밑줄로 알려줌
  */
-export const websiteData: Category[] = [
+export const websiteData = [
   {
     category: "폰트 & 타이포그래피",
     id: "font",

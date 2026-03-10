@@ -1,12 +1,8 @@
 // ============================================================
-// src/types/index.ts — 타입 정의 (DB 스키마에 맞춤)
-//
-// 이전 버전과의 차이:
-//   이전: { category: string, id: string, items: SiteItem[] }
-//   지금: DB 테이블 구조에 맞춰서 id가 숫자, category_id로 연결
+// src/types/index.ts — 타입 정의 (v2: 회원 + 즐겨찾기 추가)
 // ============================================================
 
-/** sites 테이블의 한 행 */
+/** sites 테이블 */
 export interface SiteItem {
   id: number;
   category_id: number;
@@ -14,21 +10,37 @@ export interface SiteItem {
   url: string;
   note: string;
   sort_order: number;
+  thumbnail_url: string | null;
+  tags: string | null;           // 유사 검색어용 태그 (쉼표 구분)
 }
 
-/** categories 테이블의 한 행 */
+/** categories 테이블 */
 export interface CategoryRow {
   id: number;
-  name: string;        // "폰트 & 타이포그래피"
-  slug: string;        // "font"
+  name: string;
+  slug: string;
   sort_order: number;
 }
 
-/** 화면에 표시할 때 사용하는 형태 (카테고리 + 소속 사이트들) */
+/** 화면 표시용 (카테고리 + 소속 사이트들) */
 export interface CategoryWithSites {
   id: number;
   name: string;
   slug: string;
   sort_order: number;
   items: SiteItem[];
+}
+
+/** profiles 테이블 */
+export interface Profile {
+  id: string;
+  nickname: string | null;
+  avatar_url: string | null;
+}
+
+/** favorites 테이블 */
+export interface Favorite {
+  id: number;
+  user_id: string;
+  site_id: number;
 }
