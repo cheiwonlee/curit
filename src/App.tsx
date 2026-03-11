@@ -1,5 +1,5 @@
 // ============================================================
-// src/App.tsx — 메인 페이지 (curit 브랜딩 적용)
+// src/App.tsx — 메인 페이지 (인증 상태 관리 수정)
 // ============================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -10,7 +10,9 @@ import SearchBar from './components/SearchBar';
 import CategoryTabs from './components/CategoryTabs';
 import SiteCard from './components/SiteCard';
 import AuthModal from './components/AuthModal';
-import ProfileMenu from './components/ProfileMenu';
+import NavButtons from './components/NavButtons';
+import MyPage from './components/MyPage';
+import SignupPage from './components/SignupPage';
 import FavoritesPage from './components/FavoritesPage';
 import { useActiveSection } from './hooks/useActiveSection';
 
@@ -20,20 +22,29 @@ export default function App() {
   // ============================================================
   const [searchTerm, setSearchTerm] = useState('');
 
+  // DB 데이터
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [sites, setSites] = useState<SiteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 인증 관련
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true); // 인증 상태 확인 중
 
-  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  // UI 상태
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
+  const [showMyPage, setShowMyPage] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
 
+  // 즐겨찾기
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+
   // ============================================================
-  // 데이터 로딩
+  // 데이터 로딩 (카테고리 + 사이트)
   // ============================================================
   useEffect(() => {
     async function fetchData() {
@@ -59,39 +70,68 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // 인증 상태 감지
+  // 인증 상태 감지 (수정됨)
+  //
+  // 핵심 수정:
+  //   - authLoading 상태를 추가하여 초기 인증 확인이 끝날 때까지 대기
+  //   - getSession으로 현재 세션을 먼저 확인
+  //   - onAuthStateChange로 이후 변경 감지
+  //   - 로그인 성공 시 즉시 userId, userEmail, profile, favorites 로드
   // ============================================================
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUserId(session.user.id);
-        loadProfile(session.user.id);
-        loadFavorites(session.user.id);
-      }
-    });
+    // 1. 현재 세션 확인 (페이지 새로고침 시)
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUserId(session.user.id);
-        loadProfile(session.user.id);
-        loadFavorites(session.user.id);
-      } else {
-        setUserId(null);
-        setProfile(null);
-        setFavoriteIds(new Set());
+        setUserEmail(session.user.email || null);
+        await loadProfile(session.user.id);
+        await loadFavorites(session.user.id);
       }
-    });
+      setAuthLoading(false); // 인증 확인 완료
+    };
+
+    initAuth();
+
+    // 2. 인증 상태 변화 구독 (로그인/로그아웃 시)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event); // 디버깅용
+
+        if (session?.user) {
+          setUserId(session.user.id);
+          setUserEmail(session.user.email || null);
+          await loadProfile(session.user.id);
+          await loadFavorites(session.user.id);
+        } else {
+          setUserId(null);
+          setUserEmail(null);
+          setProfile(null);
+          setFavoriteIds(new Set());
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // 프로필 로드
   const loadProfile = async (uid: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', uid)
+      .single();
     if (data) setProfile(data);
   };
 
+  // 즐겨찾기 목록 로드
   const loadFavorites = async (uid: string) => {
-    const { data } = await supabase.from('favorites').select('site_id').eq('user_id', uid);
+    const { data } = await supabase
+      .from('favorites')
+      .select('site_id')
+      .eq('user_id', uid);
     if (data) {
       setFavoriteIds(new Set(data.map((f) => f.site_id)));
     }
@@ -110,7 +150,7 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // 데이터 결합 + 검색 필터링 (tags 포함)
+  // 데이터 결합 + 검색 필터링
   // ============================================================
   const websiteData: CategoryWithSites[] = useMemo(() => {
     return categories.map((cat) => ({
@@ -136,11 +176,14 @@ export default function App() {
       .filter((group) => group.items.length > 0);
   }, [searchTerm, websiteData]);
 
-  // ============================================================
   // Intersection Observer
-  // ============================================================
   const sectionSlugs = useMemo(() => websiteData.map((g) => g.slug), [websiteData]);
   const activeSectionId = useActiveSection(sectionSlugs);
+
+  // ============================================================
+  // 로그인 여부 (authLoading이 끝난 후에만 판단)
+  // ============================================================
+  const isLoggedIn = !authLoading && !!userId;
 
   // ============================================================
   // 로딩 화면
@@ -156,25 +199,45 @@ export default function App() {
     );
   }
 
-  // ============================================================
-  // 에러 화면
-  // ============================================================
   if (error) {
     return (
       <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-500 font-bold text-lg mb-2">오류 발생</p>
           <p className="text-slate-500">{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors">
-            다시 시도
-          </button>
+          <button onClick={() => window.location.reload()} className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors">다시 시도</button>
         </div>
       </div>
     );
   }
 
   // ============================================================
-  // 즐겨찾기함 페이지
+  // 회원가입 페이지
+  // ============================================================
+  if (showSignup) {
+    return (
+      <SignupPage
+        onBack={() => { setShowSignup(false); setShowAuthModal(true); }}
+        onComplete={() => { setShowSignup(false); window.location.reload(); }}
+      />
+    );
+  }
+
+  // ============================================================
+  // 마이페이지
+  // ============================================================
+  if (showMyPage) {
+    return (
+      <MyPage
+        profile={profile}
+        userEmail={userEmail}
+        onBack={() => setShowMyPage(false)}
+      />
+    );
+  }
+
+  // ============================================================
+  // 북마크함 (즐겨찾기)
   // ============================================================
   if (showFavorites) {
     return (
@@ -190,20 +253,23 @@ export default function App() {
   }
 
   // ============================================================
-  // 메인 UI — curit 브랜딩 적용
+  // 메인 UI
   // ============================================================
   return (
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
 
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      {/* 로그인 모달 */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignupClick={() => setShowSignup(true)}
+      />
 
-      {/* ====================================================
-          네비게이션 — 로고를 "curit"으로 변경
-      ==================================================== */}
+      {/* 네비게이션 */}
       <nav className="fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row items-center gap-4">
-            {/* 로고: curit */}
+            {/* 로고 */}
             <div
               className="flex items-center gap-3 cursor-pointer shrink-0"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -216,17 +282,19 @@ export default function App() {
               <h1 className="text-2xl font-black text-pink-900 tracking-tighter lowercase">curit</h1>
             </div>
 
-            {/* 검색바: 플레이스홀더 변경 */}
+            {/* 검색바 */}
             <SearchBar value={searchTerm} onChange={setSearchTerm} />
 
-            {/* 프로필 메뉴 */}
-            <ProfileMenu
-              profile={profile}
+            {/* 네비게이션 버튼들 */}
+            <NavButtons
+              isLoggedIn={isLoggedIn}
               onLoginClick={() => setShowAuthModal(true)}
-              onFavoritesClick={() => setShowFavorites(true)}
+              onMyPageClick={() => setShowMyPage(true)}
+              onBookmarksClick={() => setShowFavorites(true)}
             />
           </div>
 
+          {/* 카테고리 탭 */}
           <CategoryTabs
             categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
             activeSectionId={activeSectionId}
@@ -234,26 +302,19 @@ export default function App() {
         </div>
       </nav>
 
-      {/* ====================================================
-          히어로 헤더 — curit 문구
-      ==================================================== */}
+      {/* 히어로 헤더 */}
       <header className="pt-40 md:pt-64 pb-20 px-6 text-center">
         <div className="max-w-4xl mx-auto">
-          {/* 배지: Curated Links, Smarter Workflow */}
           <div className="inline-flex items-center gap-2 mb-8 px-5 py-2 bg-pink-100/50 rounded-full text-pink-600">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="animate-pulse">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
             </svg>
             <span className="text-xs font-black tracking-widest uppercase">Curated Links, Smarter Workflow</span>
           </div>
-
-          {/* 타이틀: 쓸만한 사이트, 여기 다 큐릿했어요. */}
           <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight mb-8 leading-[1.1]">
             쓸만한 사이트, <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-rose-400">여기 다 큐릿했어요.</span>
           </h2>
-
-          {/* 설명 */}
           <p className="text-pink-400 text-lg font-medium leading-relaxed">
             디자인, 취업, 부동산, 재테크까지 — 흩어진 좋은 사이트들을 한곳에.
             <br className="hidden md:block" />
@@ -262,12 +323,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* ====================================================
-          메인 콘텐츠 — 카드 그리드
-      ==================================================== */}
+      {/* 메인 콘텐츠 */}
       <main className="max-w-7xl mx-auto px-4 pb-40">
         {filteredData.length === 0 ? (
-          /* 빈 상태: curit 문구 */
           <div className="py-40 text-center">
             <div className="w-24 h-24 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-8 text-pink-200">
               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -301,9 +359,7 @@ export default function App() {
         )}
       </main>
 
-      {/* ====================================================
-          푸터 — curit 문구
-      ==================================================== */}
+      {/* 푸터 */}
       <footer className="bg-white border-t border-pink-100 pt-32 pb-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex flex-col items-center gap-6">

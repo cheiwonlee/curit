@@ -1,8 +1,10 @@
 // ============================================================
-// src/components/AuthModal.tsx — 로그인/회원가입 모달
+// src/components/AuthModal.tsx — 로그인 모달 (curit v2)
 //
-// 소셜 로그인: Google, Naver, Kakao (Supabase Auth OAuth)
-// 이메일 회원가입/로그인도 지원
+// 변경점:
+//   - 회원가입 폼 제거 → "회원가입" 클릭 시 별도 페이지로 이동
+//   - 소셜 로그인 (Google, Kakao) 유지
+//   - 아이디 + 비밀번호 로그인 추가
 // ============================================================
 
 import { useState } from 'react';
@@ -11,107 +13,91 @@ import { supabase } from '../lib/supabase';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSignupClick: () => void;  // 회원가입 페이지로 이동
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  // 로그인 모드 / 회원가입 모드 전환
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('');
+export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalProps) {
+  const [loginId, setLoginId] = useState('');    // 아이디 또는 이메일
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  // ============================================================
-  // 소셜 로그인 (Google / Naver / Kakao)
-  //
-  // Supabase Auth가 OAuth 인증을 처리:
-  //   1. 사용자를 해당 서비스 로그인 페이지로 이동
-  //   2. 로그인 성공 시 Supabase로 리다이렉트
-  //   3. Supabase가 세션 생성 → auth.users에 행 추가
-  //   4. 위에서 만든 트리거가 profiles 테이블에도 행 생성
-  //
-  // ⚠️ Supabase 대시보드에서 OAuth Provider 설정 필요:
-  //   Authentication → Providers → Google/Naver/Kakao 활성화
-  // ============================================================
+  // 소셜 로그인
   const handleSocialLogin = async (provider: 'google' | 'kakao') => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo: window.location.origin,
-      },
+      options: { redirectTo: window.location.origin },
     });
     if (error) setError(error.message);
     setLoading(false);
   };
 
-  // 네이버는 Supabase 기본 제공이 아니므로 커스텀 OIDC로 처리
-  // → 여기서는 우선 구글/카카오만 구현, 네이버는 추후 추가
-  // (네이버 로그인은 Supabase의 custom OIDC provider 설정 필요)
+  // 아이디/이메일 + 비밀번호 로그인
+  const handleLogin = async () => {
+    if (!loginId || !password) {
+      setError('아이디(또는 이메일)와 비밀번호를 입력해주세요.');
+      return;
+    }
 
-  // ============================================================
-  // 이메일 회원가입
-  // ============================================================
-  const handleEmailSignup = async () => {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
+    // 아이디로 입력한 경우: profiles에서 이메일을 찾아옴
+    let email = loginId;
+
+    // @가 없으면 아이디로 간주 → 이메일 조회
+    if (!loginId.includes('@')) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', loginId)
+        .single();
+
+      if (!profileData) {
+        setError('존재하지 않는 아이디입니다.');
+        setLoading(false);
+        return;
+      }
+
+      // auth.users에서 이메일 가져오기 (profiles.id = auth.users.id)
+      const { data: userData } = await supabase.auth.admin?.getUserById(profileData.id) || {};
+      if (userData?.user?.email) {
+        email = userData.user.email;
+      } else {
+        // admin API가 안 되면 직접 이메일을 입력하도록 안내
+        setError('아이디 로그인은 준비 중입니다. 이메일로 로그인해주세요.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    const { error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
-        data: { nickname }, // 이 값이 트리거를 통해 profiles.nickname에 저장됨
-      },
     });
 
-    if (error) {
-      setError(error.message);
+    if (loginError) {
+      setError('아이디(이메일) 또는 비밀번호가 올바르지 않습니다.');
     } else {
-      alert('가입 완료! 이메일 인증을 확인해주세요.');
       onClose();
     }
     setLoading(false);
-  };
-
-  // ============================================================
-  // 이메일 로그인
-  // ============================================================
-  const handleEmailLogin = async () => {
-    setLoading(true);
-    setError(null);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
-    } else {
-      onClose();
-    }
-    setLoading(false);
-  };
-
-  const handleSubmit = () => {
-    if (mode === 'signup') handleEmailSignup();
-    else handleEmailLogin();
   };
 
   return (
-    // 모달 배경 (클릭하면 닫힘)
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      {/* 모달 본체 (클릭 이벤트 전파 차단) */}
       <div className="bg-white rounded-3xl p-8 w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        
-        <h2 className="text-2xl font-black text-slate-900 text-center mb-6">
-          {mode === 'login' ? '로그인' : '회원가입'}
-        </h2>
 
-        {/* 소셜 로그인 버튼 */}
+        {/* 로고 */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-black text-pink-900 tracking-tighter lowercase mb-2">curit</h1>
+          <p className="text-pink-300 text-sm font-medium">쓸만한 사이트, 여기 다 큐릿했어요</p>
+        </div>
+
+        {/* 소셜 로그인 */}
         <div className="flex flex-col gap-3 mb-6">
           <button
             onClick={() => handleSocialLogin('google')}
@@ -135,26 +121,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         {/* 구분선 */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex-1 h-px bg-slate-200" />
-          <span className="text-xs text-slate-400 font-medium">또는 이메일로</span>
+          <span className="text-xs text-slate-400 font-medium">또는</span>
           <div className="flex-1 h-px bg-slate-200" />
         </div>
 
-        {/* 이메일 입력 폼 */}
+        {/* 아이디/이메일 로그인 */}
         <div className="flex flex-col gap-3 mb-4">
-          {mode === 'signup' && (
-            <input
-              type="text"
-              placeholder="닉네임"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-pink-300"
-            />
-          )}
           <input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="아이디 또는 이메일"
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-pink-300"
           />
           <input
@@ -162,7 +139,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-pink-300"
           />
         </div>
@@ -170,20 +147,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         {error && <p className="text-red-500 text-xs mb-4 text-center">{error}</p>}
 
         <button
-          onClick={handleSubmit}
+          onClick={handleLogin}
           disabled={loading}
           className="w-full py-3 bg-pink-500 text-white rounded-2xl font-bold hover:bg-pink-600 transition-colors disabled:opacity-50"
         >
-          {loading ? '처리 중...' : mode === 'login' ? '로그인' : '가입하기'}
+          {loading ? '로그인 중...' : '로그인'}
         </button>
 
-        {/* 모드 전환 */}
+        {/* 회원가입 링크 */}
         <p className="text-center text-xs text-slate-400 mt-4">
-          {mode === 'login' ? (
-            <>계정이 없으신가요? <button onClick={() => setMode('signup')} className="text-pink-500 font-bold hover:underline">회원가입</button></>
-          ) : (
-            <>이미 계정이 있으신가요? <button onClick={() => setMode('login')} className="text-pink-500 font-bold hover:underline">로그인</button></>
-          )}
+          계정이 없으신가요?{' '}
+          <button
+            onClick={() => { onClose(); onSignupClick(); }}
+            className="text-pink-500 font-bold hover:underline"
+          >
+            회원가입
+          </button>
         </p>
       </div>
     </div>

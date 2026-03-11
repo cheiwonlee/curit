@@ -7,7 +7,7 @@ export interface SiteItem {
   id: number;
   category_id: number;
   name: string;
-  url: string;
+  url: string;  
   note: string;
   sort_order: number;
   thumbnail_url: string | null;
@@ -36,6 +36,7 @@ export interface Profile {
   id: string;
   nickname: string | null;
   avatar_url: string | null;
+  username: string | null;    // ← 추가
 }
 
 /** favorites 테이블 */
