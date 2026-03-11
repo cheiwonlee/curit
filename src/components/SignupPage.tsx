@@ -2,20 +2,18 @@
 // src/components/SignupPage.tsx — 회원가입 페이지
 //
 // 단계:
-//   1. 이름 입력
-//   2. 이메일 입력 → 인증번호 발송
-//   3. 인증번호 입력 (6자리)
-//   4. 아이디 입력 + 중복확인
-//   5. 비밀번호 (8자 이상) + 비밀번호 확인
-//   6. 가입 완료 → 홈으로 이동
+//   1. 이름 + 이메일 입력 → 인증번호 발송 → 인증번호 입력
+//   2. 아이디 입력 + 중복확인
+//   3. 비밀번호 (8자 이상) + 비밀번호 확인
+//   → 가입 완료 → 홈으로 이동
 // ============================================================
 
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface SignupPageProps {
-  onBack: () => void;           // 로그인 화면으로 돌아가기
-  onComplete: () => void;       // 가입 완료 → 홈으로
+  onBack: () => void;
+  onComplete: () => void;
 }
 
 export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
@@ -28,7 +26,7 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
   const [passwordConfirm, setPasswordConfirm] = useState('');
 
   // UI 상태
-  const [step, setStep] = useState(1);  // 현재 단계 (1~3)
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,16 +35,9 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
   const [codeVerified, setCodeVerified] = useState(false);
   const [usernameChecked, setUsernameChecked] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(false);
-  const [sentCode, setSentCode] = useState('');  // 발송된 인증번호 (임시 저장)
 
   // ============================================================
-  // 이메일 인증번호 발송
-  //
-  // Supabase의 이메일 인증을 직접 활용하는 대신,
-  // 6자리 랜덤 코드를 생성하여 Supabase Auth의 OTP 방식으로 처리
-  //
-  // 실제 프로덕션에서는 별도 이메일 서비스(SendGrid 등)를 쓰지만,
-  // Supabase의 signInWithOtp를 활용하면 무료로 가능
+  // 이메일 인증번호 발송 (Supabase OTP)
   // ============================================================
   const handleSendCode = async () => {
     if (!email) { setError('이메일을 입력해주세요.'); return; }
@@ -58,51 +49,53 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
     setLoading(true);
     setError(null);
 
-    // 6자리 랜덤 코드 생성
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setSentCode(code);
-
-    // Supabase Auth의 OTP 이메일 발송
-    // (Supabase가 자동으로 이메일을 보내줌)
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        data: { verification_code: code },
-        shouldCreateUser: false, // 아직 유저를 만들지 않음
+        shouldCreateUser: true,
       },
     });
 
-    // OTP가 실패해도 (유저가 없어서) 코드 자체는 생성됨
-    // 간단한 구현을 위해 클라이언트에서 코드를 검증
+    if (otpError) {
+      setError('인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setLoading(false);
+      return;
+    }
+
     setCodeSent(true);
     setLoading(false);
-
-    // 실제로는 이메일 발송이 됐는지 확인해야 하지만,
-    // Supabase 무료 플랜에서는 이메일 발송에 제한이 있을 수 있어
-    // 개발 단계에서는 콘솔에 코드를 출력해서 테스트
-    console.log('인증번호:', code);
-    alert(`인증번호가 발송되었습니다. (개발 모드: ${code})`);
+    alert('인증번호가 이메일로 발송되었습니다. 메일함을 확인해주세요.');
   };
 
   // ============================================================
-  // 인증번호 확인
+  // 인증번호 확인 (Supabase OTP 검증)
   // ============================================================
-  const handleVerifyCode = () => {
-    if (verificationCode === sentCode) {
-      setCodeVerified(true);
-      setError(null);
-      setStep(2);
-    } else {
+  const handleVerifyCode = async () => {
+    setLoading(true);
+    setError(null);
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: verificationCode,
+      type: 'email',
+    });
+
+    if (verifyError) {
       setError('인증번호가 일치하지 않습니다.');
+      setLoading(false);
+      return;
     }
+
+    // OTP 검증 성공 시 자동 로그인되므로, 가입 절차를 위해 로그아웃
+    await supabase.auth.signOut();
+
+    setCodeVerified(true);
+    setLoading(false);
+    setStep(2);
   };
 
   // ============================================================
   // 아이디 중복확인
-  //
-  // Supabase RPC (Remote Procedure Call)를 사용:
-  //   → SQL에서 만든 check_username 함수를 호출
-  //   → true = 이미 존재, false = 사용 가능
   // ============================================================
   const handleCheckUsername = async () => {
     if (!username) { setError('아이디를 입력해주세요.'); return; }
@@ -134,13 +127,8 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
 
   // ============================================================
   // 최종 회원가입
-  //
-  // 1. Supabase Auth에 유저 생성 (이메일 + 비밀번호)
-  // 2. profiles 테이블에 username, nickname 저장
-  //    (트리거가 자동으로 profiles 행을 만들지만, username은 별도 업데이트)
   // ============================================================
   const handleSignup = async () => {
-    // 비밀번호 검증
     if (password.length < 8) {
       setError('비밀번호는 8자 이상이어야 합니다.');
       return;
@@ -157,7 +145,6 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
     setLoading(true);
     setError(null);
 
-    // 1. Supabase Auth 유저 생성
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -175,7 +162,6 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
       return;
     }
 
-    // 2. profiles에 username 저장
     if (authData.user) {
       await supabase
         .from('profiles')
@@ -188,6 +174,9 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
     onComplete();
   };
 
+  // ============================================================
+  // UI
+  // ============================================================
   return (
     <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center px-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
@@ -205,7 +194,7 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
         {/* 단계 표시 */}
         <div className="flex items-center gap-2 mb-8">
           {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-2 flex-1">
+            <div key={s} className="flex-1">
               <div className={`w-full h-1.5 rounded-full transition-colors ${
                 step >= s ? 'bg-pink-500' : 'bg-pink-100'
               }`} />
@@ -216,7 +205,6 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
         {/* ======== STEP 1: 이름 + 이메일 + 인증 ======== */}
         {step === 1 && (
           <div className="flex flex-col gap-4">
-            {/* 이름 */}
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1.5">이름</label>
               <input
@@ -228,7 +216,6 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
               />
             </div>
 
-            {/* 이메일 */}
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1.5">이메일</label>
               <div className="flex gap-2">
@@ -254,7 +241,6 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
               </div>
             </div>
 
-            {/* 인증번호 입력 (이메일 발송 후 표시) */}
             {codeSent && !codeVerified && (
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1.5">인증번호 (6자리)</label>
@@ -269,19 +255,18 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
                   />
                   <button
                     onClick={handleVerifyCode}
-                    disabled={verificationCode.length !== 6}
+                    disabled={verificationCode.length !== 6 || loading}
                     className="px-4 py-3 bg-pink-500 text-white rounded-2xl text-xs font-bold hover:bg-pink-600 transition-colors disabled:opacity-50 shrink-0"
                   >
-                    확인
+                    {loading ? '확인 중...' : '확인'}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* 다음 단계 버튼 */}
             {codeVerified && (
               <button
-                onClick={() => { if (name) setStep(2); else setError('이름을 입력해주세요.'); }}
+                onClick={() => { if (name) { setError(null); setStep(2); } else setError('이름을 입력해주세요.'); }}
                 className="w-full py-3 bg-pink-500 text-white rounded-2xl font-bold hover:bg-pink-600 transition-colors mt-2"
               >
                 다음

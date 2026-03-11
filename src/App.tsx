@@ -83,6 +83,9 @@ export default function App() {
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
 
+      console.log('세션 확인:', session);
+      console.log('유저:', session?.user?.email);
+
       if (session?.user) {
         setUserId(session.user.id);
         setUserEmail(session.user.email || null);
@@ -363,15 +366,6 @@ export default function App() {
       <footer className="bg-white border-t border-pink-100 pt-32 pb-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex flex-col items-center gap-6">
-            <a href="https://x.com/fr2e_u" target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-4 hover:scale-105 transition-transform">
-              <div className="w-12 h-12 rounded-full border border-pink-100 flex items-center justify-center text-pink-400 group-hover:text-pink-600 group-hover:border-pink-300 group-hover:bg-pink-50 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/>
-                </svg>
-              </div>
-              <h5 className="text-xl font-black mb-1 tracking-tight text-pink-900 group-hover:text-pink-600 transition-colors">developed by @fr2e_u</h5>
-            </a>
-            <div className="h-px w-full max-w-[200px] bg-pink-100 my-2" />
             <p className="text-pink-300 text-xs font-bold tracking-[0.2em] uppercase">curit — 당신의 북마크를 큐레이션합니다.</p>
           </div>
         </div>

@@ -83,6 +83,7 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
       setError('아이디(이메일) 또는 비밀번호가 올바르지 않습니다.');
     } else {
       onClose();
+      window.location.reload();  // 로그인 후 새로고침으로 확실하게 반영
     }
     setLoading(false);
   };
