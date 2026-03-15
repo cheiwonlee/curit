@@ -25,7 +25,7 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
   if (!isOpen) return null;
 
   // 소셜 로그인
-  const handleSocialLogin = async (provider: 'google' | 'kakao') => {
+  const handleSocialLogin = async (provider: 'google' /* | 'kakao' */) => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -109,6 +109,7 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
             Google로 계속
           </button>
 
+          /*
           <button
             onClick={() => handleSocialLogin('kakao')}
             disabled={loading}
@@ -117,6 +118,7 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#191919"><path d="M12 3C6.48 3 2 6.58 2 10.94c0 2.8 1.86 5.27 4.66 6.67l-1.18 4.33c-.1.36.31.65.62.44l5.02-3.33c.29.02.58.04.88.04 5.52 0 10-3.58 10-7.94S17.52 3 12 3z"/></svg>
             카카오로 계속
           </button>
+          */
         </div>
 
         {/* 구분선 */}
