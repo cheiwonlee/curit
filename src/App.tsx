@@ -31,6 +31,7 @@ export default function App() {
   // 인증 관련
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authProvider, setAuthProvider] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true); // 인증 상태 확인 중
 
@@ -109,11 +110,13 @@ export default function App() {
         if (session?.user) {
           setUserId(session.user.id);
           setUserEmail(session.user.email || null);
+          setAuthProvider(session.user.app_metadata?.provider || 'email');  // ← 추가
           await loadProfile(session.user.id);
           await loadFavorites(session.user.id);
         } else {
           setUserId(null);
           setUserEmail(null);
+          setAuthProvider(null);  // ← 추가
           setProfile(null);
           setFavoriteIds(new Set());
         }
@@ -246,6 +249,7 @@ export default function App() {
       <MyPage
         profile={profile}
         userEmail={userEmail}
+        authProvider={authProvider}
         onBack={() => setShowMyPage(false)}
       />
     );

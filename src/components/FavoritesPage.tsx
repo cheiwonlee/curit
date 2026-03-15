@@ -1,9 +1,10 @@
 // ============================================================
-// src/components/FavoritesPage.tsx — 즐겨찾기함 (curit 브랜딩)
+// src/components/FavoritesPage.tsx — 북마크함 (curit 로고 추가)
 // ============================================================
 
 import { useState, useMemo } from 'react';
 import SiteCard from './SiteCard';
+import CuritLogo from './CuritLogo';
 import type { CategoryWithSites } from '../types';
 
 interface FavoritesPageProps {
@@ -48,16 +49,13 @@ export default function FavoritesPage({ websiteData, favoriteIds, userId, onTogg
 
   return (
     <div className="bg-[#FFF5F7] min-h-screen text-slate-800">
-      {/* 헤더 */}
+      {/* 헤더 — curit 로고 포함 */}
       <div className="glass-nav fixed top-0 inset-x-0 z-[100] border-b border-pink-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 rounded-xl hover:bg-pink-50 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            <h1 className="text-xl font-black text-pink-900">내 컬렉션</h1>
+            <CuritLogo onHomeClick={onBack} />
+            <div className="h-6 w-px bg-pink-200" />
+            <h2 className="text-lg font-bold text-pink-900">내 컬렉션</h2>
             <span className="text-pink-300 text-sm font-bold">{totalFavorites}개</span>
 
             <div className="flex-1 max-w-md ml-auto relative">
