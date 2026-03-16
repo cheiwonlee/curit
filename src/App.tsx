@@ -33,7 +33,6 @@ export default function App() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authProvider, setAuthProvider] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [authLoading, setAuthLoading] = useState(true); // 인증 상태 확인 중
 
   // UI 상태
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -103,8 +102,6 @@ export default function App() {
     } catch (err) {
       console.error('인증 에러:', err);
     }
-    // 초기 인증 확인 절차가 끝나면 로딩 상태를 해제합니다.
-    setAuthLoading(false);
   };
 
   initAuth();
@@ -123,7 +120,6 @@ export default function App() {
         setProfile(null);
         setFavoriteIds(new Set()); // 즐겨찾기는 빈 Set으로 초기화
       }
-      setAuthLoading(false);
     }
   );
 
