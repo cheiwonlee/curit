@@ -84,107 +84,85 @@ export default function App() {
 
   // ============================================================
   useEffect(() => {
-    // 1. 현재 세션 확인 (페이지 새로고침 시)
-    const initAuth = async () => {
-      try {
-        // URL에 토큰이 있으면 (구글 로그인 콜백) 정리
-        if (window.location.hash.includes('access_token')) {
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-
-        console.log('세션:', session ? '있음' : '없음');
-
-        if (session?.user) {
-          setUserId(session.user.id);
-          setUserEmail(session.user.email || null);
-          setAuthProvider(session.user.app_metadata?.provider || 'email');
-
-          // 프로필 로드 (실패해도 무시)
-          try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            if (data) setProfile(data);
-          } catch (e) {
-            console.log('프로필 없음 (정상일 수 있음)');
-          }
-
-          // 즐겨찾기 로드 (실패해도 무시)
-          try {
-            const { data } = await supabase
-              .from('favorites')
-              .select('site_id')
-              .eq('user_id', session.user.id);
-            if (data) setFavoriteIds(new Set(data.map((f) => f.site_id)));
-          } catch (e) {
-            console.log('즐겨찾기 로드 실패');
-          }
-        }
-      } catch (err) {
-        console.error('인증 에러:', err);
+  // 앱이 처음 로드될 때 실행되는 초기화 함수
+  const initAuth = async () => {
+    try {
+      // 1. URL에 access_token이 포함된 경우 (소셜 로그인 직후 등)
+      if (window.location.hash.includes('access_token')) {
+        // 주소창의 토큰 정보를 지워 URL을 깔끔하게 유지합니다.
+        window.history.replaceState({}, '', window.location.pathname);
       }
-      // 무조건 로딩 해제 (try/finally 바깥)
+
+      // 2. 현재 저장된 세션 정보를 Supabase에서 가져옵니다.
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // 세션이 존재하고 유저 정보가 있다면 상태를 업데이트합니다.
+      if (session?.user) {
+        await handleUserSession(session.user);
+      }
+    } catch (err) {
+      console.error('인증 에러:', err);
+    }
+    // 초기 인증 확인 절차가 끝나면 로딩 상태를 해제합니다.
+    setAuthLoading(false);
+  };
+
+  initAuth();
+
+  // 3. 인증 상태(로그인, 로그아웃, 토큰 갱신 등)의 변화를 감지하는 리스너 설정
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (_event, session) => {
+      if (session?.user) {
+        // 로그인 상태라면 유저 데이터 처리
+        await handleUserSession(session.user);
+      } else {
+        // 로그아웃 상태라면 모든 유저 관련 상태값을 초기화
+        setUserId(null);
+        setUserEmail(null);
+        setAuthProvider(null);
+        setProfile(null);
+        setFavoriteIds(new Set()); // 즐겨찾기는 빈 Set으로 초기화
+      }
       setAuthLoading(false);
-    };
-
-    initAuth();
-
-    // 2. 인증 상태 변화 구독 (로그인/로그아웃 시)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event); // 디버깅용
-
-        if (session?.user) {
-          setUserId(session.user.id);
-          setUserEmail(session.user.email || null);
-          setAuthProvider(session.user.app_metadata?.provider || 'email');  // ← 추가
-          await loadProfile(session.user.id);
-          await loadFavorites(session.user.id);
-        } else {
-          setUserId(null);
-          setUserEmail(null);
-          setAuthProvider(null);  // ← 추가
-          setProfile(null);
-          setFavoriteIds(new Set());
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // 프로필 로드
-  const loadProfile = async (uid: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .single();
-      if (data) setProfile(data);
-      if (error) console.error('프로필 로드 에러:', error);
-    } catch (err) {
-      console.error('프로필 로드 실패:', err);
     }
-  };
+  );
 
-  // 즐겨찾기 목록 로드
-  const loadFavorites = async (uid: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('favorites')
-        .select('site_id')
-        .eq('user_id', uid);
-      if (data) setFavoriteIds(new Set(data.map((f) => f.site_id)));
-      if (error) console.error('즐겨찾기 로드 에러:', error);
-    } catch (err) {
-      console.error('즐겨찾기 로드 실패:', err);
-    }
-  };
+  // 컴포넌트 언마운트 시 리스너를 해제하여 메모리 누수를 방지합니다.
+  return () => subscription.unsubscribe();
+}, []);
+
+// 유저 세션 처리 (인증 성공 시 공통적으로 호출되는 함수)
+const handleUserSession = async (user: any) => {
+  // 기본 유저 정보(ID, 이메일, 인증 제공자) 설정
+  setUserId(user.id);
+  setUserEmail(user.email || null);
+  setAuthProvider(user.app_metadata?.provider || 'email');
+
+  try {
+    // 4. profiles 테이블에서 현재 유저의 프로필 정보를 가져옵니다.
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    if (data) setProfile(data);
+  } catch (e) {
+    console.log('프로필 없음');
+  }
+
+  try {
+    // 5. favorites 테이블에서 현재 유저가 등록한 즐겨찾기 목록을 가져옵니다.
+    const { data } = await supabase
+      .from('favorites')
+      .select('site_id')
+      .eq('user_id', user.id);
+    
+    // 가져온 site_id들을 중복 없는 Set 객체로 변환하여 저장 (빠른 조회를 위해)
+    if (data) setFavoriteIds(new Set(data.map((f) => f.site_id)));
+  } catch (e) {
+    console.log('즐겨찾기 없음');
+  }
+};
 
   // ============================================================
   // 즐겨찾기 토글
