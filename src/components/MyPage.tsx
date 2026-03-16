@@ -19,9 +19,10 @@ interface MyPageProps {
   userEmail: string | null;
   authProvider: string | null;  // 'google', 'kakao', 'email' 등
   onBack: () => void;
+  onProfileUpdate: (updatedProfile: Profile) => void;
 }
 
-export default function MyPage({ profile, userEmail, authProvider, onBack }: MyPageProps) {
+export default function MyPage({ profile, userEmail, authProvider, onBack, onProfileUpdate }: MyPageProps) {
   const [editingNickname, setEditingNickname] = useState(false);
   const [nickname, setNickname] = useState(profile?.nickname || '');
   const [currentNickname, setCurrentNickname] = useState(profile?.nickname || '');
@@ -60,6 +61,7 @@ export default function MyPage({ profile, userEmail, authProvider, onBack }: MyP
     } else {
       setCurrentNickname(nickname.trim());
       setEditingNickname(false);
+      onProfileUpdate({ ...profile, nickname: nickname.trim() });
     }
     setSaving(false);
   };

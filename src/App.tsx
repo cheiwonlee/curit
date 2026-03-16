@@ -39,6 +39,8 @@ export default function App() {
   const [showSignup, setShowSignup] = useState(false);
   const [showMyPage, setShowMyPage] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | null>(null); // 어디서 왔는지 기억
+  
 
   // 즐겨찾기
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
@@ -86,21 +88,24 @@ export default function App() {
   // 앱이 처음 로드될 때 실행되는 초기화 함수
   const initAuth = async () => {
     try {
-      // 먼저 세션을 가져옴 (URL의 토큰을 Supabase가 읽을 시간을 줌)
+      console.log('1. initAuth 시작');
+      
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('2. getSession 완료, 세션:', session ? '있음' : '없음');
 
-      // 세션 확인 후에 URL 정리
       if (window.location.hash.includes('access_token')) {
         window.history.replaceState({}, '', window.location.pathname);
       }
 
-      // 세션이 존재하고 유저 정보가 있다면 상태를 업데이트합니다.
       if (session?.user) {
+        console.log('3. handleUserSession 시작');
         await handleUserSession(session.user);
+        console.log('4. handleUserSession 완료');
       }
     } catch (err) {
       console.error('인증 에러:', err);
     }
+    console.log('5. initAuth 종료');
   };
 
   initAuth();
@@ -157,6 +162,16 @@ const handleUserSession = async (user: any) => {
   } catch (e) {
     console.log('즐겨찾기 없음');
   }
+
+
+  // 로그인 후 리다이렉트
+    if (loginRedirect === 'mypage') {
+      setShowMyPage(true);
+      setLoginRedirect(null);
+    } else if (loginRedirect === 'bookmarks') {
+      setShowFavorites(true);
+      setLoginRedirect(null);
+    }
 };
 
   // ============================================================
@@ -263,6 +278,7 @@ const handleUserSession = async (user: any) => {
         userEmail={userEmail}
         authProvider={authProvider}
         onBack={() => setShowMyPage(false)}
+        onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
       />
     );
   }
@@ -327,8 +343,14 @@ const handleUserSession = async (user: any) => {
             <NavButtons
               isLoggedIn={isLoggedIn}
               onLoginClick={() => setShowAuthModal(true)}
-              onMyPageClick={() => setShowMyPage(true)}
-              onBookmarksClick={() => setShowFavorites(true)}
+              onMyPageClick={() => {
+                if (isLoggedIn) setShowMyPage(true);
+                else { setLoginRedirect('mypage'); setShowAuthModal(true); }
+              }}
+              onBookmarksClick={() => {
+                if (isLoggedIn) setShowFavorites(true);
+                else { setLoginRedirect('bookmarks'); setShowAuthModal(true); }
+              }}
             />
           </div>
 
