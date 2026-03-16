@@ -90,14 +90,27 @@ export default function App() {
     try {
       console.log('1. initAuth 시작');
       
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('2. getSession 완료, 세션:', session ? '있음' : '없음');
+      // 3초 안에 응답 없으면 포기
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('세션 타임아웃')), 3000)
+      );
+      
+      let session = null;
+      try {
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        session = result.data?.session;
+      } catch (e) {
+        console.log('세션 로드 타임아웃 - 비로그인 상태로 진행');
+      }
+      
+      console.log('2. 세션:', session ? '있음' : '없음');
 
       if (window.location.hash.includes('access_token')) {
         window.history.replaceState({}, '', window.location.pathname);
       }
 
-      if (session?.user) {
+      if (session && session.user) {
         console.log('3. handleUserSession 시작');
         await handleUserSession(session.user);
         console.log('4. handleUserSession 완료');
