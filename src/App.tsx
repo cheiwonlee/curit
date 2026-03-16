@@ -86,18 +86,21 @@ export default function App() {
   useEffect(() => {
     // 1. 현재 세션 확인 (페이지 새로고침 시)
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
 
-      console.log('세션 확인:', session);
-      console.log('유저:', session?.user?.email);
-
-      if (session?.user) {
-        setUserId(session.user.id);
-        setUserEmail(session.user.email || null);
-        await loadProfile(session.user.id);
-        await loadFavorites(session.user.id);
+        if (session?.user) {
+          setUserId(session.user.id);
+          setUserEmail(session.user.email || null);
+          setAuthProvider(session.user.app_metadata?.provider || 'email');
+          await loadProfile(session.user.id);
+          await loadFavorites(session.user.id);
+        }
+      } catch (err) {
+        console.error('인증 초기화 에러:', err);
+      } finally {
+        setAuthLoading(false);  // 에러가 나도 반드시 로딩 해제
       }
-      setAuthLoading(false); // 인증 확인 완료
     };
 
     initAuth();
@@ -128,22 +131,30 @@ export default function App() {
 
   // 프로필 로드
   const loadProfile = async (uid: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .single();
-    if (data) setProfile(data);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .single();
+      if (data) setProfile(data);
+      if (error) console.error('프로필 로드 에러:', error);
+    } catch (err) {
+      console.error('프로필 로드 실패:', err);
+    }
   };
 
   // 즐겨찾기 목록 로드
   const loadFavorites = async (uid: string) => {
-    const { data } = await supabase
-      .from('favorites')
-      .select('site_id')
-      .eq('user_id', uid);
-    if (data) {
-      setFavoriteIds(new Set(data.map((f) => f.site_id)));
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('site_id')
+        .eq('user_id', uid);
+      if (data) setFavoriteIds(new Set(data.map((f) => f.site_id)));
+      if (error) console.error('즐겨찾기 로드 에러:', error);
+    } catch (err) {
+      console.error('즐겨찾기 로드 실패:', err);
     }
   };
 
