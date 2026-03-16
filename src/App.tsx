@@ -297,7 +297,14 @@ const handleUserSession = async (user: any) => {
       {/* 로그인 모달 */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={async () => {
+          setShowAuthModal(false);
+          // 모달 닫힐 때 세션 다시 확인
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            await handleUserSession(session.user);
+          }
+        }}
         onSignupClick={() => setShowSignup(true)}
       />
 
