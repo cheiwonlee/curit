@@ -86,14 +86,13 @@ export default function App() {
   // 앱이 처음 로드될 때 실행되는 초기화 함수
   const initAuth = async () => {
     try {
-      // 1. URL에 access_token이 포함된 경우 (소셜 로그인 직후 등)
+      // 먼저 세션을 가져옴 (URL의 토큰을 Supabase가 읽을 시간을 줌)
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // 세션 확인 후에 URL 정리
       if (window.location.hash.includes('access_token')) {
-        // 주소창의 토큰 정보를 지워 URL을 깔끔하게 유지합니다.
         window.history.replaceState({}, '', window.location.pathname);
       }
-
-      // 2. 현재 저장된 세션 정보를 Supabase에서 가져옵니다.
-      const { data: { session } } = await supabase.auth.getSession();
 
       // 세션이 존재하고 유저 정보가 있다면 상태를 업데이트합니다.
       if (session?.user) {
