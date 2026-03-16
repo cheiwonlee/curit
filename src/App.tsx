@@ -87,20 +87,48 @@ export default function App() {
     // 1. 현재 세션 확인 (페이지 새로고침 시)
     const initAuth = async () => {
       try {
+        // URL에 토큰이 있으면 (구글 로그인 콜백) 정리
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
+
+        console.log('세션:', session ? '있음' : '없음');
 
         if (session?.user) {
           setUserId(session.user.id);
           setUserEmail(session.user.email || null);
           setAuthProvider(session.user.app_metadata?.provider || 'email');
-          await loadProfile(session.user.id);
-          await loadFavorites(session.user.id);
+
+          // 프로필 로드 (실패해도 무시)
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            if (data) setProfile(data);
+          } catch (e) {
+            console.log('프로필 없음 (정상일 수 있음)');
+          }
+
+          // 즐겨찾기 로드 (실패해도 무시)
+          try {
+            const { data } = await supabase
+              .from('favorites')
+              .select('site_id')
+              .eq('user_id', session.user.id);
+            if (data) setFavoriteIds(new Set(data.map((f) => f.site_id)));
+          } catch (e) {
+            console.log('즐겨찾기 로드 실패');
+          }
         }
       } catch (err) {
-        console.error('인증 초기화 에러:', err);
-      } finally {
-        setAuthLoading(false);  // 에러가 나도 반드시 로딩 해제
+        console.error('인증 에러:', err);
       }
+      // 무조건 로딩 해제 (try/finally 바깥)
+      setAuthLoading(false);
     };
 
     initAuth();
