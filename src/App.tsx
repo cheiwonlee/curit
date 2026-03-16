@@ -85,43 +85,34 @@ export default function App() {
 
   // ============================================================
   useEffect(() => {
-  // 앱이 처음 로드될 때 실행되는 초기화 함수
-  const initAuth = async () => {
-    try {
-      console.log('1. initAuth 시작');
-      
-      // 3초 안에 응답 없으면 포기
-      const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('세션 타임아웃')), 3000)
-      );
-      
-      let session = null;
-      try {
-        const result = await Promise.race([sessionPromise, timeoutPromise]) as any;
-        session = result.data?.session;
-      } catch (e) {
-        console.log('세션 로드 타임아웃 - 비로그인 상태로 진행');
-      }
-      
-      console.log('2. 세션:', session ? '있음' : '없음');
+    // onAuthStateChange 하나로 모든 인증 상태를 처리
+    // - 페이지 로드 시: INITIAL_SESSION 이벤트 발생 → 세션 확인
+    // - 로그인 시: SIGNED_IN 이벤트 발생
+    // - 로그아웃 시: SIGNED_OUT 이벤트 발생
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
 
-      if (window.location.hash.includes('access_token')) {
-        window.history.replaceState({}, '', window.location.pathname);
-      }
+        // URL에 토큰이 있으면 정리
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
 
-      if (session && session.user) {
-        console.log('3. handleUserSession 시작');
-        await handleUserSession(session.user);
-        console.log('4. handleUserSession 완료');
+        if (session?.user) {
+          await handleUserSession(session.user);
+        } else {
+          setUserId(null);
+          setUserEmail(null);
+          setAuthProvider(null);
+          setProfile(null);
+          setFavoriteIds(new Set());
+        }
       }
-    } catch (err) {
-      console.error('인증 에러:', err);
-    }
-    console.log('5. initAuth 종료');
-  };
+    );
 
-  initAuth();
+    return () => subscription.unsubscribe();
+  }, []);
+
 
   // 3. 인증 상태(로그인, 로그아웃, 토큰 갱신 등)의 변화를 감지하는 리스너 설정
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
