@@ -83,77 +83,7 @@ export default function App() {
   // - 실시간 상태 구독 (onAuthStateChange): 사용자가 로그인하거나 로그아웃하는 이벤트를 감지하여 userId, profile, favoriteIds 등을 실시간으로 업데이트합니다.
   // - authLoading 상태: 인증 정보가 확인되기 전까지는 로그인 여부를 판단하지 않도록 하여, 깜빡임 현상이나 잘못된 접근을 방지합니다.
 
-  // ============================================================
-  // 2. 통합된 인증 및 초기화 관리
-useEffect(() => {
-  // 초기 세션 확인 함수
-  const initApp = async () => {
-    try {
-      // 현재 세션 가져오기
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        await handleUserSession(session.user);
-      }
-
-      // URL 토큰 정리
-      if (window.location.hash.includes('access_token')) {
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    } catch (err) {
-      console.error('인증 초기화 에러:', err);
-    } finally {
-      // 인증 확인이 끝나면 로딩 해제를 시도합니다.
-      // (fetchData 결과에 따라 최종 로딩 상태가 결정됩니다)
-    }
-  };
-
-  initApp();
-
-  // 실시간 인증 상태 감지
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      console.log('인증 이벤트 발생:', event);
-
-      if (session?.user) {
-        await handleUserSession(session.user);
-      } else {
-        // 로그아웃 시 상태 초기화
-        setUserId(null);
-        setUserEmail(null);
-        setAuthProvider(null);
-        setProfile(null);
-        setFavoriteIds(new Set());
-      }
-    }
-  );
-
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []); // 의존성 배열을 비워 처음에 한 번만 실행되게 합니다.
-
-
-  // 3. 인증 상태(로그인, 로그아웃, 토큰 갱신 등)의 변화를 감지하는 리스너 설정
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
-      if (session?.user) {
-        // 로그인 상태라면 유저 데이터 처리
-        await handleUserSession(session.user);
-      } else {
-        // 로그아웃 상태라면 모든 유저 관련 상태값을 초기화
-        setUserId(null);
-        setUserEmail(null);
-        setAuthProvider(null);
-        setProfile(null);
-        setFavoriteIds(new Set()); // 즐겨찾기는 빈 Set으로 초기화
-      }
-    }
-  );
-  // 컴포넌트 언마운트 시 리스너를 해제하여 메모리 누수를 방지합니다.
-  return () => subscription.unsubscribe();
-}, []);
-
+  // ============================================================ 
 // 유저 세션 처리 (인증 성공 시 공통적으로 호출되는 함수)
 const handleUserSession = async (user: any) => {
   // 기본 유저 정보(ID, 이메일, 인증 제공자) 설정
@@ -186,7 +116,6 @@ const handleUserSession = async (user: any) => {
     console.log('즐겨찾기 없음');
   }
 
-
   // 로그인 후 리다이렉트
     if (loginRedirect === 'mypage') {
       setShowMyPage(true);
@@ -196,6 +125,36 @@ const handleUserSession = async (user: any) => {
       setLoginRedirect(null);
     }
 };
+  // ============================================================
+
+  useEffect(() => {
+    // onAuthStateChange 하나로 모든 인증 상태를 처리합니다.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
+
+        // URL에 토큰이 있으면 정리 (OAuth 로그인 시)
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        if (session?.user) {
+          await handleUserSession(session.user);
+        } else {
+          // 로그아웃 시 상태 초기화
+          setUserId(null);
+          setUserEmail(null);
+          setAuthProvider(null);
+          setProfile(null);
+          setFavoriteIds(new Set());
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [handleUserSession]);
 
   // ============================================================
   // 즐겨찾기 토글
