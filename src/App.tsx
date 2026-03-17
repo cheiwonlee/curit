@@ -55,19 +55,12 @@ export default function App() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const { data: catData, error: catError } = await supabase
-          .from('categories').select('*').order('sort_order');
-        if (catError) throw catError;
-
-        const { data: siteData, error: siteError } = await supabase
-          .from('sites').select('*').order('sort_order');
-        if (siteError) throw siteError;
-
+        const { data: catData } = await supabase.from('categories').select('*').order('sort_order');
+        const { data: siteData } = await supabase.from('sites').select('*').order('sort_order');
         setCategories(catData || []);
         setSites(siteData || []);
       } catch (err) {
-        setError('데이터를 불러오는 데 실패했습니다.');
-        console.error(err);
+        setError('데이터 로딩 실패');
       } finally {
         setLoading(false);
       }
@@ -154,7 +147,7 @@ const handleUserSession = async (user: any) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [handleUserSession]);
+  }, []);
 
   // ============================================================
   // 즐겨찾기 토글
@@ -290,14 +283,7 @@ const handleUserSession = async (user: any) => {
       {/* 로그인 모달 */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={async () => {
-          setShowAuthModal(false);
-          // 모달 닫힐 때 세션 다시 확인
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            await handleUserSession(session.user);
-          }
-        }}
+        onClose={() => setShowAuthModal(false)}
         onSignupClick={() => setShowSignup(true)}
       />
 
