@@ -87,7 +87,8 @@ export default function App() {
       (event, session) => {
         console.log('Auth event:', event);
 
-        if (window.location.hash.includes('access_token')) {
+        // OAuth 리다이렉트 후 URL 정리 (#이 남아있는 경우 포함)
+        if (window.location.hash) {
           window.history.replaceState({}, '', window.location.pathname);
         }
 

@@ -25,11 +25,16 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
   if (!isOpen) return null;
 
   // 소셜 로그인
-  const handleSocialLogin = async (provider: 'google' /* | 'kakao' */) => {
+  const handleSocialLogin = async (provider: 'google') => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          prompt: 'select_account',  // 매번 계정 선택 화면 표시
+        },
+      },
     });
     if (error) setError(error.message);
     setLoading(false);
