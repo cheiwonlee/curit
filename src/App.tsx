@@ -110,6 +110,38 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+
+
+// 브라우저 뒤로가기 감지
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash;
+      if (hash === '#mypage') {
+        setShowMyPage(true);
+        setShowFavorites(false);
+        setShowSignup(false);
+      } else if (hash === '#bookmarks') {
+        setShowFavorites(true);
+        setShowMyPage(false);
+        setShowSignup(false);
+      } else if (hash === '#signup') {
+        setShowSignup(true);
+        setShowMyPage(false);
+        setShowFavorites(false);
+      } else {
+        // 해시 없음 = 홈
+        setShowMyPage(false);
+        setShowFavorites(false);
+        setShowSignup(false);
+        setShowAuthModal(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+
   // userId가 설정되면 프로필과 즐겨찾기를 별도로 로드
   useEffect(() => {
     if (!userId) return;
@@ -252,7 +284,10 @@ export default function App() {
         profile={profile}
         userEmail={userEmail}
         authProvider={authProvider}
-        onBack={() => setShowMyPage(false)}
+        onBack={() => {
+          setShowMyPage(false);
+          window.history.pushState({}, '', window.location.pathname);
+        }}
         onProfileUpdate={(updatedProfile) => setProfile(updatedProfile)}
       />
     );
@@ -269,7 +304,10 @@ export default function App() {
         userId={userId}
         onToggleFavorite={handleToggleFavorite}
         onLoginRequired={() => setShowAuthModal(true)}
-        onBack={() => setShowFavorites(false)}
+        onBack={() => {
+          setShowFavorites(false);
+          window.history.pushState({}, '', window.location.pathname);
+        }}
       />
     );
   }
@@ -312,11 +350,17 @@ export default function App() {
               isLoggedIn={isLoggedIn}
               onLoginClick={() => setShowAuthModal(true)}
               onMyPageClick={() => {
-                if (isLoggedIn) setShowMyPage(true);
+                if (isLoggedIn) {
+                  setShowMyPage(true);
+                  window.history.pushState({}, '', '#mypage');
+                }
                 else { setLoginRedirect('mypage'); setShowAuthModal(true); }
               }}
               onBookmarksClick={() => {
-                if (isLoggedIn) setShowFavorites(true);
+                if (isLoggedIn) {
+                  setShowFavorites(true);
+                  window.history.pushState({}, '', '#bookmarks');
+                }
                 else { setLoginRedirect('bookmarks'); setShowAuthModal(true); }
               }}
             />
