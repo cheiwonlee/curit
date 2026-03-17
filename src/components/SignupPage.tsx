@@ -243,19 +243,19 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
 
             {codeSent && !codeVerified && (
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1.5">인증번호 (6자리)</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">인증번호</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="인증번호를 입력해주세요"
                     value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    maxLength={6}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    maxLength={8}
                     className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-pink-300 tracking-widest text-center font-bold"
                   />
                   <button
                     onClick={handleVerifyCode}
-                    disabled={verificationCode.length !== 6 || loading}
+                    disabled={verificationCode.length < 6 || loading}
                     className="px-4 py-3 bg-pink-500 text-white rounded-2xl text-xs font-bold hover:bg-pink-600 transition-colors disabled:opacity-50 shrink-0"
                   >
                     {loading ? '확인 중...' : '확인'}

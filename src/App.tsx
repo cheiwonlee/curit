@@ -269,8 +269,16 @@ export default function App() {
   if (showSignup) {
     return (
       <SignupPage
-        onBack={() => { setShowSignup(false); setShowAuthModal(true); }}
-        onComplete={() => { setShowSignup(false); window.location.reload(); }}
+        onBack={() => {
+          setShowSignup(false);
+          setShowAuthModal(true);
+          window.history.pushState({}, '', window.location.pathname);
+        }}
+        onComplete={() => {
+          setShowSignup(false);
+          window.history.replaceState({}, '', window.location.pathname);
+          window.location.reload();
+        }}
       />
     );
   }
@@ -322,7 +330,10 @@ export default function App() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onSignupClick={() => setShowSignup(true)}
+        onSignupClick={() => {
+          setShowSignup(true);
+          window.history.pushState({}, '', '#signup');
+        }}
       />
 
       {/* 네비게이션 */}
