@@ -84,34 +84,54 @@ export default function App() {
   // - authLoading 상태: 인증 정보가 확인되기 전까지는 로그인 여부를 판단하지 않도록 하여, 깜빡임 현상이나 잘못된 접근을 방지합니다.
 
   // ============================================================
-  useEffect(() => {
-    // onAuthStateChange 하나로 모든 인증 상태를 처리
-    // - 페이지 로드 시: INITIAL_SESSION 이벤트 발생 → 세션 확인
-    // - 로그인 시: SIGNED_IN 이벤트 발생
-    // - 로그아웃 시: SIGNED_OUT 이벤트 발생
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event);
-
-        // URL에 토큰이 있으면 정리
-        if (window.location.hash.includes('access_token')) {
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-
-        if (session?.user) {
-          await handleUserSession(session.user);
-        } else {
-          setUserId(null);
-          setUserEmail(null);
-          setAuthProvider(null);
-          setProfile(null);
-          setFavoriteIds(new Set());
-        }
+  // 2. 통합된 인증 및 초기화 관리
+useEffect(() => {
+  // 초기 세션 확인 함수
+  const initApp = async () => {
+    try {
+      // 현재 세션 가져오기
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        await handleUserSession(session.user);
       }
-    );
 
-    return () => subscription.unsubscribe();
-  }, []);
+      // URL 토큰 정리
+      if (window.location.hash.includes('access_token')) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } catch (err) {
+      console.error('인증 초기화 에러:', err);
+    } finally {
+      // 인증 확인이 끝나면 로딩 해제를 시도합니다.
+      // (fetchData 결과에 따라 최종 로딩 상태가 결정됩니다)
+    }
+  };
+
+  initApp();
+
+  // 실시간 인증 상태 감지
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      console.log('인증 이벤트 발생:', event);
+
+      if (session?.user) {
+        await handleUserSession(session.user);
+      } else {
+        // 로그아웃 시 상태 초기화
+        setUserId(null);
+        setUserEmail(null);
+        setAuthProvider(null);
+        setProfile(null);
+        setFavoriteIds(new Set());
+      }
+    }
+  );
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []); // 의존성 배열을 비워 처음에 한 번만 실행되게 합니다.
 
 
   // 3. 인증 상태(로그인, 로그아웃, 토큰 갱신 등)의 변화를 감지하는 리스너 설정
@@ -130,7 +150,6 @@ export default function App() {
       }
     }
   );
-
   // 컴포넌트 언마운트 시 리스너를 해제하여 메모리 누수를 방지합니다.
   return () => subscription.unsubscribe();
 }, []);
