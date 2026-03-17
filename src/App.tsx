@@ -78,63 +78,25 @@ export default function App() {
 
   // ============================================================ 
 // 유저 세션 처리 (인증 성공 시 공통적으로 호출되는 함수)
-const handleUserSession = async (user: any) => {
-  // 기본 유저 정보(ID, 이메일, 인증 제공자) 설정
-  setUserId(user.id);
-  setUserEmail(user.email || null);
-  setAuthProvider(user.app_metadata?.provider || 'email');
 
-  try {
-    // 4. profiles 테이블에서 현재 유저의 프로필 정보를 가져옵니다.
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    if (data) setProfile(data);
-  } catch (e) {
-    console.log('프로필 없음');
-  }
-
-  try {
-    // 5. favorites 테이블에서 현재 유저가 등록한 즐겨찾기 목록을 가져옵니다.
-    const { data } = await supabase
-      .from('favorites')
-      .select('site_id')
-      .eq('user_id', user.id);
-    
-    // 가져온 site_id들을 중복 없는 Set 객체로 변환하여 저장 (빠른 조회를 위해)
-    if (data) setFavoriteIds(new Set(data.map((f) => f.site_id)));
-  } catch (e) {
-    console.log('즐겨찾기 없음');
-  }
-
-  // 로그인 후 리다이렉트
-    if (loginRedirect === 'mypage') {
-      setShowMyPage(true);
-      setLoginRedirect(null);
-    } else if (loginRedirect === 'bookmarks') {
-      setShowFavorites(true);
-      setLoginRedirect(null);
-    }
-};
   // ============================================================
 
+  // 인증 상태 관리
   useEffect(() => {
-    // onAuthStateChange 하나로 모든 인증 상태를 처리합니다.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth event:', event);
 
-        // URL에 토큰이 있으면 정리 (OAuth 로그인 시)
         if (window.location.hash.includes('access_token')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
 
         if (session?.user) {
-          await handleUserSession(session.user);
+          // 동기적으로 기본 정보만 설정 (await 금지!)
+          setUserId(session.user.id);
+          setUserEmail(session.user.email || null);
+          setAuthProvider(session.user.app_metadata?.provider || 'email');
         } else {
-          // 로그아웃 시 상태 초기화
           setUserId(null);
           setUserEmail(null);
           setAuthProvider(null);
@@ -144,10 +106,47 @@ const handleUserSession = async (user: any) => {
       }
     );
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
+
+  // userId가 설정되면 프로필과 즐겨찾기를 별도로 로드
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadUserData = async () => {
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (profileData) setProfile(profileData);
+      } catch (e) {
+        console.log('프로필 없음');
+      }
+
+      try {
+        const { data: favData } = await supabase
+          .from('favorites')
+          .select('site_id')
+          .eq('user_id', userId);
+        if (favData) setFavoriteIds(new Set(favData.map((f) => f.site_id)));
+      } catch (e) {
+        console.log('즐겨찾기 없음');
+      }
+
+      // 로그인 후 리다이렉트
+      if (loginRedirect === 'mypage') {
+        setShowMyPage(true);
+        setLoginRedirect(null);
+      } else if (loginRedirect === 'bookmarks') {
+        setShowFavorites(true);
+        setLoginRedirect(null);
+      }
+    };
+
+    loadUserData();
+  }, [userId]);
 
   // ============================================================
   // 즐겨찾기 토글
