@@ -1,5 +1,5 @@
 // ============================================================
-// src/App.tsx — 메인 페이지 (인증 상태 관리 수정)
+// src/App.tsx — 메인 페이지 (Phase 1: 정렬 + 푸터 + 버그 수정)
 // ============================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -21,6 +21,7 @@ export default function App() {
   // 상태(State)
   // ============================================================
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState<'category' | 'asc' | 'desc'>('category');
 
   // DB 데이터
   const [categories, setCategories] = useState<CategoryRow[]>([]);
@@ -39,18 +40,13 @@ export default function App() {
   const [showSignup, setShowSignup] = useState(false);
   const [showMyPage, setShowMyPage] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | null>(null); // 어디서 왔는지 기억
-  
+  const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | null>(null);
 
   // 즐겨찾기
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
   // ============================================================
-  // 데이터 로딩 (카테고리 + 사이트)
-  // 1. 데이터 로딩 및 동기화 (Supabase 연동)
-  // 이 코드는 앱이 시작되자마자 Supabase DB에서 categories와 sites 테이블의 데이터를 가져옵니다.
-  // useEffect: 컴포넌트 마운트 시 한 번 실행되며, 카테고리와 사이트 목록을 각각 가져와 상태(setCategories, setSites)에 저장합니다.
-  // 에러 핸들링: 데이터를 불러오는 동안 로딩 스피너를 보여주고, 실패할 경우 에러 메시지와 함께 '다시 시도' 버튼을 띄우는 예외 처리가 잘 되어 있습니다.
+  // 데이터 로딩
   // ============================================================
   useEffect(() => {
     async function fetchData() {
@@ -69,31 +65,19 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // 2. 정교한 인증(Authentication) 관리
-  // 사용자의 로그인 상태를 단순히 한 번 확인하는 것에 그치지 않고, 세션의 유지와 변화를 실시간으로 감지합니다.
-  
-  // - 초기 세션 확인 (initAuth): 페이지가 새로고침될 때 현재 로그인된 사용자가 있는지 확인하고, 있다면 프로필과 즐겨찾기 목록을 즉시 로드합니다.
-  // - 실시간 상태 구독 (onAuthStateChange): 사용자가 로그인하거나 로그아웃하는 이벤트를 감지하여 userId, profile, favoriteIds 등을 실시간으로 업데이트합니다.
-  // - authLoading 상태: 인증 정보가 확인되기 전까지는 로그인 여부를 판단하지 않도록 하여, 깜빡임 현상이나 잘못된 접근을 방지합니다.
-
-  // ============================================================ 
-// 유저 세션 처리 (인증 성공 시 공통적으로 호출되는 함수)
-
+  // 인증 상태 관리 (교착 상태 방지: onAuthStateChange에서 await 금지)
   // ============================================================
-
-  // 인증 상태 관리
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth event:', event);
 
-        // OAuth 리다이렉트 후 URL 정리 (#이 남아있는 경우 포함)
+        // OAuth 리다이렉트 후 URL 정리
         if (window.location.hash) {
           window.history.replaceState({}, '', window.location.pathname);
         }
 
         if (session?.user) {
-          // 동기적으로 기본 정보만 설정 (await 금지!)
           setUserId(session.user.id);
           setUserEmail(session.user.email || null);
           setAuthProvider(session.user.app_metadata?.provider || 'email');
@@ -108,39 +92,7 @@ export default function App() {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
-
-
-
-// 브라우저 뒤로가기 감지
-  useEffect(() => {
-    const handlePopState = () => {
-      const hash = window.location.hash;
-      if (hash === '#mypage') {
-        setShowMyPage(true);
-        setShowFavorites(false);
-        setShowSignup(false);
-      } else if (hash === '#bookmarks') {
-        setShowFavorites(true);
-        setShowMyPage(false);
-        setShowSignup(false);
-      } else if (hash === '#signup') {
-        setShowSignup(true);
-        setShowMyPage(false);
-        setShowFavorites(false);
-      } else {
-        // 해시 없음 = 홈
-        setShowMyPage(false);
-        setShowFavorites(false);
-        setShowSignup(false);
-        setShowAuthModal(false);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
+  }, []);  // ← 빈 배열! handleUserSession 의존성 제거
 
   // userId가 설정되면 프로필과 즐겨찾기를 별도로 로드
   useEffect(() => {
@@ -149,10 +101,7 @@ export default function App() {
     const loadUserData = async () => {
       try {
         const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
+          .from('profiles').select('*').eq('id', userId).single();
         if (profileData) setProfile(profileData);
       } catch (e) {
         console.log('프로필 없음');
@@ -160,9 +109,7 @@ export default function App() {
 
       try {
         const { data: favData } = await supabase
-          .from('favorites')
-          .select('site_id')
-          .eq('user_id', userId);
+          .from('favorites').select('site_id').eq('user_id', userId);
         if (favData) setFavoriteIds(new Set(favData.map((f) => f.site_id)));
       } catch (e) {
         console.log('즐겨찾기 없음');
@@ -182,6 +129,26 @@ export default function App() {
   }, [userId]);
 
   // ============================================================
+  // 브라우저 뒤로가기 지원
+  // ============================================================
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash;
+      if (hash === '#mypage') {
+        setShowMyPage(true); setShowFavorites(false); setShowSignup(false);
+      } else if (hash === '#bookmarks') {
+        setShowFavorites(true); setShowMyPage(false); setShowSignup(false);
+      } else if (hash === '#signup') {
+        setShowSignup(true); setShowMyPage(false); setShowFavorites(false);
+      } else {
+        setShowMyPage(false); setShowFavorites(false); setShowSignup(false); setShowAuthModal(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // ============================================================
   // 즐겨찾기 토글
   // ============================================================
   const handleToggleFavorite = useCallback((siteId: number) => {
@@ -194,15 +161,7 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // 데이터 결합 + 검색 필터링
-
-  // 3. 데이터 결합 및 검색 필터링
-  // DB에서 가져온 원본 데이터를 사용자에게 보여주기 적합한 형태로 가공하는 과정입니다.
-
-  // - websiteData (useMemo): 카테고리와 사이트 데이터를 결합하여, 각 카테고리 내에 해당 사이트들이 배열로 들어있는 트리 구조를 만듭니다.
-  // - filteredData (useMemo): 검색어(searchTerm)가 입력되면 사이트의 이름, 노트, 태그를 대소문자 구분 없이 검색하여 실시간으로 결과를 걸러냅니다.
-  // - 효율성: useMemo를 사용해 검색어나 원본 데이터가 바뀔 때만 다시 계산하도록 최적화되어 있습니다.
-
+  // 데이터 결합 + 검색 필터링 + 정렬
   // ============================================================
   const websiteData: CategoryWithSites[] = useMemo(() => {
     return categories.map((cat) => ({
@@ -213,32 +172,47 @@ export default function App() {
 
   const filteredData = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
-    if (!lowerSearch) return websiteData;
 
-    return websiteData
+    let result = websiteData
       .map((group) => ({
         ...group,
         items: group.items.filter(
           (item) =>
+            !lowerSearch ||
             item.name.toLowerCase().includes(lowerSearch) ||
             (item.note && item.note.toLowerCase().includes(lowerSearch)) ||
             (item.tags && item.tags.toLowerCase().includes(lowerSearch))
         ),
       }))
       .filter((group) => group.items.length > 0);
-  }, [searchTerm, websiteData]);
+
+    // 가나다순 정렬
+    if (sortMode === 'asc' || sortMode === 'desc') {
+      const allItems = result.flatMap((group) => group.items);
+      allItems.sort((a, b) => {
+        const compare = a.name.localeCompare(b.name, 'ko');
+        return sortMode === 'asc' ? compare : -compare;
+      });
+      result = [{
+        id: 0,
+        name: sortMode === 'asc' ? '가나다순 (ㄱ→ㅎ)' : '가나다순 (ㅎ→ㄱ)',
+        slug: 'sorted',
+        sort_order: 0,
+        items: allItems,
+      }];
+    }
+
+    return result;
+  }, [searchTerm, websiteData, sortMode]);
 
   // Intersection Observer
   const sectionSlugs = useMemo(() => websiteData.map((g) => g.slug), [websiteData]);
   const activeSectionId = useActiveSection(sectionSlugs);
 
-  // ============================================================
-  // 로그인 여부 (authLoading이 끝난 후에만 판단)
-  // ============================================================
   const isLoggedIn = !!userId;
 
   // ============================================================
-  // 로딩 화면
+  // 로딩/에러 화면
   // ============================================================
   if (loading) {
     return (
@@ -302,7 +276,7 @@ export default function App() {
   }
 
   // ============================================================
-  // 북마크함 (즐겨찾기)
+  // 북마크함
   // ============================================================
   if (showFavorites) {
     return (
@@ -326,7 +300,7 @@ export default function App() {
   return (
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
 
-      {/* 로그인 모달 */}
+      {/* 로그인 모달 — onClose에서 async 제거 (교착 방지) */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
@@ -364,29 +338,59 @@ export default function App() {
                 if (isLoggedIn) {
                   setShowMyPage(true);
                   window.history.pushState({}, '', '#mypage');
+                } else {
+                  setLoginRedirect('mypage');
+                  setShowAuthModal(true);
                 }
-                else { setLoginRedirect('mypage'); setShowAuthModal(true); }
               }}
               onBookmarksClick={() => {
                 if (isLoggedIn) {
                   setShowFavorites(true);
                   window.history.pushState({}, '', '#bookmarks');
+                } else {
+                  setLoginRedirect('bookmarks');
+                  setShowAuthModal(true);
                 }
-                else { setLoginRedirect('bookmarks'); setShowAuthModal(true); }
               }}
             />
           </div>
 
-          {/* 카테고리 탭 */}
-          <CategoryTabs
-            categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
-            activeSectionId={activeSectionId}
-          />
+          {/* 정렬 버튼 + 카테고리 탭 */}
+          <div className="flex items-center gap-3 mt-4">
+            <div className="flex items-center gap-1.5 shrink-0">
+              {[
+                { value: 'category' as const, label: '카테고리순' },
+                { value: 'asc' as const, label: 'ㄱ→ㅎ' },
+                { value: 'desc' as const, label: 'ㅎ→ㄱ' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSortMode(opt.value)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${
+                    sortMode === opt.value
+                      ? 'bg-pink-900 text-white shadow-md'
+                      : 'bg-white text-pink-300 border border-pink-100 hover:text-pink-500 hover:border-pink-300'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="h-5 w-px bg-pink-100 shrink-0" />
+          </div>
+
+          {/* 카테고리 탭 (카테고리순일 때만 표시) */}
+          {sortMode === 'category' && (
+            <CategoryTabs
+              categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
+              activeSectionId={activeSectionId}
+            />
+          )}
         </div>
       </nav>
 
       {/* 히어로 헤더 */}
-      <header className="pt-40 md:pt-64 pb-20 px-6 text-center">
+      <header className="pt-48 md:pt-72 pb-20 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-8 px-5 py-2 bg-pink-100/50 rounded-full text-pink-600">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="animate-pulse">
@@ -443,10 +447,40 @@ export default function App() {
       </main>
 
       {/* 푸터 */}
-      <footer className="bg-white border-t border-pink-100 pt-32 pb-20">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="flex flex-col items-center gap-6">
-            <p className="text-pink-300 text-xs font-bold tracking-[0.2em] uppercase">curit — 당신의 북마크를 큐레이션합니다.</p>
+      <footer className="bg-white border-t border-pink-100">
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          {/* 링크 그리드 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            <div>
+              <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
+              <ul className="space-y-2.5">
+                <li><a href="mailto:sarah0w0@naver.com?subject=[curit] 사이트 등록 신청" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</a></li>
+                <li><a href="mailto:sarah0w0@naver.com?subject=[curit] 문의" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">문의하기</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
+              <ul className="space-y-2.5">
+                <li><span className="text-sm text-slate-400">개인정보 처리방침</span></li>
+                <li><span className="text-sm text-slate-400">이용약관</span></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-slate-900 mb-4">문의</h4>
+              <ul className="space-y-2.5">
+                <li><a href="mailto:sarah0w0@naver.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">sarah0w0@naver.com</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-slate-900 mb-4">curit</h4>
+              <p className="text-sm text-slate-400 leading-relaxed">쓸만한 사이트,<br/>여기 다 큐릿했어요.</p>
+            </div>
+          </div>
+
+          {/* 하단 저작권 */}
+          <div className="border-t border-pink-50 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-pink-300 text-xs font-bold">© 2026 curit. All rights reserved.</p>
+            <p className="text-pink-200 text-xs">당신의 북마크를 큐레이션합니다.</p>
           </div>
         </div>
       </footer>
