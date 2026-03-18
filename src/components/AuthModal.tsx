@@ -53,30 +53,20 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
     // 아이디로 입력한 경우: profiles에서 이메일을 찾아옴
     let email = loginId;
 
-    // @가 없으면 아이디로 간주 → 이메일 조회
+    // @가 없으면 아이디로 간주 → DB에서 이메일 조회
     if (!loginId.includes('@')) {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', loginId)
-        .single();
+      const { data: foundEmail, error: rpcError } = await supabase.rpc(
+        'get_email_by_username',
+        { username_input: loginId }
+      );
 
-      if (!profileData) {
+      if (rpcError || !foundEmail) {
         setError('존재하지 않는 아이디입니다.');
         setLoading(false);
         return;
       }
 
-      // auth.users에서 이메일 가져오기 (profiles.id = auth.users.id)
-      const { data: userData } = await supabase.auth.admin?.getUserById(profileData.id) || {};
-      if (userData?.user?.email) {
-        email = userData.user.email;
-      } else {
-        // admin API가 안 되면 직접 이메일을 입력하도록 안내
-        setError('아이디 로그인은 준비 중입니다. 이메일로 로그인해주세요.');
-        setLoading(false);
-        return;
-      }
+      email = foundEmail;
     }
 
     const { error: loginError } = await supabase.auth.signInWithPassword({
