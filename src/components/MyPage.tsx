@@ -9,7 +9,7 @@
 //   - 닉네임 저장 후 새로고침 대신 상태 업데이트
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types';
 import CuritLogo from './CuritLogo';
@@ -29,6 +29,12 @@ export default function MyPage({ profile, userEmail, authProvider, onBack, onPro
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || null);
+
+  // profile이 바뀌면 로컬 상태도 동기화
+  useEffect(() => {
+    if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
+    if (profile?.nickname) setCurrentNickname(profile.nickname);
+  }, [profile]);
 
   // 비밀번호 변경
   const [showPasswordChange, setShowPasswordChange] = useState(false);
