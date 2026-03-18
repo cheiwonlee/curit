@@ -14,6 +14,7 @@ import NavButtons from './components/NavButtons';
 import MyPage from './components/MyPage';
 import SignupPage from './components/SignupPage';
 import FavoritesPage from './components/FavoritesPage';
+import ScrollToTopButton from './components/ScrollToTopButton';
 import { useActiveSection } from './hooks/useActiveSection';
 
 export default function App() {
