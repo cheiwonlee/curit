@@ -203,8 +203,8 @@ export default function SignupPage({ onBack, onComplete }: SignupPageProps) {
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5">이름</label>
-              <input type="text" placeholder="이름을 입력해주세요" value={name}
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">닉네임</label>
+              <input type="text" placeholder="닉네임을 입력해주세요" value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-pink-300 transition-colors" />
             </div>
