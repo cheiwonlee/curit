@@ -26,7 +26,7 @@ export default function PasswordResetPage({ onBack, onComplete }: PasswordResetP
 
   // 비밀번호 재설정
   const [step, setStep] = useState(1); // 1: 이메일, 2: 인증번호, 3: 새 비밀번호
-  const [codeSent, setCodeSent] = useState(false);
+  const [, setCodeSent] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');

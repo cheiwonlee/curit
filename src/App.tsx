@@ -55,9 +55,9 @@ export default function App() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showSiteRequest, setShowSiteRequest] = useState(false);
   const [showMySites, setShowMySites] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);  // ← 이 줄 추가
   const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | 'mysites' | null>(null);
 
-  const [_codeSent, setCodeSent] = useState(false);
   // 즐겨찾기
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
