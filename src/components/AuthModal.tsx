@@ -1,10 +1,11 @@
 // ============================================================
-// src/components/AuthModal.tsx — 로그인 모달 (curit v2)
+// src/components/AuthModal.tsx — 로그인 모달
 //
-// 변경점:
-//   - 회원가입 폼 제거 → "회원가입" 클릭 시 별도 페이지로 이동
-//   - 소셜 로그인 (Google, Kakao) 유지
-//   - 아이디 + 비밀번호 로그인 추가
+// 기능:
+//   - Google OAuth 로그인 (앱 내 브라우저 감지)
+//   - 아이디/이메일 + 비밀번호 로그인
+//   - 회원가입 페이지 이동
+//   - 계정 찾기 페이지 이동
 // ============================================================
 
 import { useState } from 'react';
@@ -14,34 +15,48 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSignupClick: () => void;
-  onFindAccountClick: () => void;  // ← 추가
+  onFindAccountClick: () => void;
 }
 
 export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccountClick }: AuthModalProps) {
-  const [loginId, setLoginId] = useState('');    // 아이디 또는 이메일
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  // 소셜 로그인
+  // ============================================================
+  // 소셜 로그인 (앱 내 브라우저 감지 포함)
+  // ============================================================
   const handleSocialLogin = async (provider: 'google') => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isInAppBrowser = /kakaotalk|instagram|fbav|fban|line|naver|daum|twitterbot/i.test(ua);
+
+    if (isInAppBrowser) {
+      if (/kakaotalk/i.test(ua)) {
+        window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+      } else {
+        alert('앱 내 브라우저에서는 Google 로그인이 지원되지 않습니다.\n\n우측 상단 메뉴(⋯)에서 "기본 브라우저로 열기"를 선택해주세요.');
+      }
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: window.location.origin,
-        queryParams: {
-          prompt: 'select_account',  // 매번 계정 선택 화면 표시
-        },
+        queryParams: { prompt: 'select_account' },
       },
     });
     if (error) setError(error.message);
     setLoading(false);
   };
 
+  // ============================================================
   // 아이디/이메일 + 비밀번호 로그인
+  // ============================================================
   const handleLogin = async () => {
     if (!loginId || !password) {
       setError('아이디(또는 이메일)와 비밀번호를 입력해주세요.');
@@ -51,7 +66,6 @@ export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccoun
     setLoading(true);
     setError(null);
 
-    // 아이디로 입력한 경우: profiles에서 이메일을 찾아옴
     let email = loginId;
 
     // @가 없으면 아이디로 간주 → DB에서 이메일 조회
@@ -70,36 +84,6 @@ export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccoun
       email = foundEmail;
     }
 
-    const handleSocialLogin = async (provider: 'google') => {
-    // 앱 내 브라우저 감지 (카카오톡, 인스타, 라인, 페북 등)
-    const ua = navigator.userAgent.toLowerCase();
-    const isInAppBrowser = /kakaotalk|instagram|fbav|fban|line|naver|daum|twitterbot/i.test(ua);
-
-    if (isInAppBrowser) {
-      // 외부 브라우저로 열기
-      const currentUrl = window.location.href;
-      if (/kakaotalk/i.test(ua)) {
-        // 카카오톡: 'kakaotalk://web/openExternal?url=' 사용
-        window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
-      } else {
-        // 그 외: intent 또는 안내 메시지
-        alert('앱 내 브라우저에서는 Google 로그인이 지원되지 않습니다.\n\n우측 상단 메뉴(⋯)에서 "기본 브라우저로 열기"를 선택해주세요.');
-      }
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: window.location.origin,
-        queryParams: { prompt: 'select_account' },
-      },
-    });
-    if (error) setError(error.message);
-    setLoading(false);
-  };
-
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -113,6 +97,9 @@ export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccoun
     setLoading(false);
   };
 
+  // ============================================================
+  // UI
+  // ============================================================
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-3xl p-8 w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -134,13 +121,12 @@ export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccoun
             Google로 계속
           </button>
 
-          {/*
+          {/* 카카오 로그인 (추후 활성화)
           <button
             onClick={() => handleSocialLogin('kakao')}
             disabled={loading}
             className="flex items-center justify-center gap-3 w-full py-3 bg-[#FEE500] rounded-2xl hover:bg-[#FDD800] transition-colors font-medium text-sm text-[#191919]"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#191919"><path d="M12 3C6.48 3 2 6.58 2 10.94c0 2.8 1.86 5.27 4.66 6.67l-1.18 4.33c-.1.36.31.65.62.44l5.02-3.33c.29.02.58.04.88.04 5.52 0 10-3.58 10-7.94S17.52 3 12 3z"/></svg>
             카카오로 계속
           </button>
           */}
@@ -183,14 +169,12 @@ export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccoun
         </button>
 
         {/* 계정 찾기 */}
-            <button
-              onClick={() => { onClose(); onFindAccountClick(); }}
-              className="w-full text-center text-xs text-pink-400 hover:underline"
-            >
-              아이디/비밀번호를 잊으셨나요?
-            </button>
-
-
+        <button
+          onClick={() => { onClose(); onFindAccountClick(); }}
+          className="w-full text-center text-xs text-pink-400 hover:underline mt-3"
+        >
+          아이디/비밀번호를 잊으셨나요?
+        </button>
 
         {/* 회원가입 링크 */}
         <p className="text-center text-xs text-slate-400 mt-4">
