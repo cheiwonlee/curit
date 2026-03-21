@@ -47,6 +47,12 @@ export default function MyPage({ profile, userEmail, authProvider, onBack, onPro
   // 구글 로그인 여부 확인
   const isOAuthUser = authProvider === 'google' || authProvider === 'kakao';
 
+
+  // 회원 탈퇴
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   if (!profile) return null;
 
   // ============================================================
@@ -180,6 +186,29 @@ export default function MyPage({ profile, userEmail, authProvider, onBack, onPro
     }
 
     setPasswordLoading(false);
+  };
+
+
+  // ============================================================
+  // 회원 탈퇴
+  // ============================================================
+
+    const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== '탈퇴합니다') return;
+    setDeleting(true);
+
+    const { error } = await supabase.rpc('delete_own_account');
+
+    if (error) {
+      alert('회원탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      console.error('탈퇴 에러:', error);
+      setDeleting(false);
+      return;
+    }
+
+    await supabase.auth.signOut();
+    alert('회원탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.');
+    window.location.href = '/';
   };
 
   return (
@@ -385,6 +414,61 @@ export default function MyPage({ profile, userEmail, authProvider, onBack, onPro
             )}
           </div>
         )}
+
+        {/* 회원탈퇴 */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="text-xs text-slate-300 hover:text-red-400 transition-colors"
+          >
+            회원탈퇴
+          </button>
+        </div>
+
+        {/* 회원탈퇴 확인 모달 */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}>
+            <div className="bg-white rounded-3xl p-8 w-full max-w-sm mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-black text-slate-900 mb-3">정말 탈퇴하시겠어요?</h3>
+              <p className="text-sm text-slate-500 mb-2">탈퇴 시 다음 데이터가 영구 삭제됩니다.</p>
+              <ul className="text-xs text-slate-400 mb-6 space-y-1">
+                <li>• 프로필 정보 (닉네임, 프로필 사진)</li>
+                <li>• 북마크한 사이트 목록</li>
+                <li>• 나만의 사이트 목록</li>
+                <li>• 사이트 등록 신청 내역</li>
+              </ul>
+
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">확인을 위해 "탈퇴합니다"를 입력해주세요</label>
+                <input
+                  type="text"
+                  placeholder="탈퇴합니다"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-red-300 transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== '탈퇴합니다' || deleting}
+                  className="flex-1 py-3 bg-red-500 text-white rounded-2xl text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-30"
+                >
+                  {deleting ? '처리 중...' : '탈퇴하기'}
+                </button>
+                <button
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                  className="px-6 py-3 bg-slate-100 text-slate-500 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-colors"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        
       </main>
     </div>
   );
