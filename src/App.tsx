@@ -27,6 +27,8 @@ import CategoryReorderPage from './components/CategoryReorderPage';
 import FooterPages from './components/FooterPages';
 import ScrollToTopButton from './components/ScrollToTopButton';
 import { useActiveSection } from './hooks/useActiveSection';
+import { useScrollDirection } from './hooks/useScrollDirection';
+
 
 export default function App() {
   // ============================================================
@@ -74,6 +76,13 @@ export default function App() {
   // 상태 — 북마크 (기존 사이트 + 나만의 사이트)
   // ============================================================
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+
+    // ============================================================
+  // 모바일 최적화: 네비 숨김, 검색바 축소, 카테고리 토글
+  // ============================================================
+
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [showCategoryTabs, setShowCategoryTabs] = useState(true);
 
   // ============================================================
   // 데이터 로딩 — 카테고리 + 사이트
@@ -255,7 +264,7 @@ export default function App() {
   const sectionSlugs = useMemo(() => websiteData.map((g) => g.slug), [websiteData]);
   const activeSectionId = useActiveSection(sectionSlugs);
   const isLoggedIn = !!userId;
-
+  const scrollDirection = useScrollDirection();
   // ============================================================
   // 페이지 이동 헬퍼
   // ============================================================
@@ -380,24 +389,41 @@ export default function App() {
         onFindAccountClick={() => goTo('find-account', setShowPasswordReset)}
       />
 
-      {/* ============ 네비게이션 ============ */}
-      <nav className="fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* 네비게이션 — 스크롤 내리면 숨김 */}
+      <nav className={`fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm transition-transform duration-300 ${
+        scrollDirection === 'down' ? '-translate-y-full' : 'translate-y-0'
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
 
-          {/* 로고 + 검색바 + 네비 버튼 */}
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <div className="flex items-center gap-3 cursor-pointer shrink-0"
+          {/* 로고 + 검색 + 버튼 */}
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* 로고 */}
+            <div className="flex items-center gap-2 cursor-pointer shrink-0"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="w-10 h-10 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-xl flex items-center justify-center text-white shadow-lg shadow-pink-200">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-lg md:rounded-xl flex items-center justify-center text-white shadow-lg shadow-pink-200">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
               </div>
-              <h1 className="text-2xl font-black text-pink-900 tracking-tighter lowercase">curit</h1>
+              <h1 className="text-xl md:text-2xl font-black text-pink-900 tracking-tighter lowercase">curit</h1>
             </div>
 
-            <SearchBar value={searchTerm} onChange={setSearchTerm} />
+            {/* 검색바 — 모바일: 아이콘, 클릭 시 확장 / 데스크탑: 항상 표시 */}
+            <div className="flex-1 hidden md:block">
+              <SearchBar value={searchTerm} onChange={setSearchTerm} />
+            </div>
 
+            {/* 모바일 검색 아이콘 */}
+            <button
+              onClick={() => setSearchExpanded(!searchExpanded)}
+              className="md:hidden p-2 rounded-xl hover:bg-pink-50 transition-colors text-pink-500"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
+
+            {/* 네비게이션 버튼 */}
             <NavButtons
               isLoggedIn={isLoggedIn}
               onLoginClick={() => setShowAuthModal(true)}
@@ -416,8 +442,15 @@ export default function App() {
             />
           </div>
 
-          {/* 정렬 드롭다운 */}
-          <div className="flex items-center gap-2 mt-3">
+          {/* 모바일 검색바 (확장 시) */}
+          {searchExpanded && (
+            <div className="md:hidden mt-2">
+              <SearchBar value={searchTerm} onChange={setSearchTerm} />
+            </div>
+          )}
+
+          {/* 정렬 드롭다운 + 카테고리 토글 */}
+          <div className="flex items-center gap-2 mt-2 md:mt-3">
             <SortDropdown
               value={sortMode}
               onChange={setSortMode}
@@ -430,20 +463,35 @@ export default function App() {
                   : '최근 등록된 순으로 정렬됨'}
               </span>
             )}
+            {/* 카테고리 탭 토글 (카테고리순일 때만) */}
+            {sortMode === 'category' && (
+              <button
+                onClick={() => setShowCategoryTabs(!showCategoryTabs)}
+                className="ml-auto md:hidden flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-pink-400 hover:bg-pink-50 transition-colors"
+              >
+                카테고리
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+                  className={`transition-transform ${showCategoryTabs ? 'rotate-180' : ''}`}>
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </button>
+            )}
           </div>
 
-          {/* 카테고리 탭 (카테고리순일 때만) */}
+          {/* 카테고리 탭 — 데스크탑: 항상 표시, 모바일: 토글 */}
           {sortMode === 'category' && (
-            <CategoryTabs
-              categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
-              activeSectionId={activeSectionId}
-            />
+            <div className={`${showCategoryTabs ? 'block' : 'hidden'} md:block`}>
+              <CategoryTabs
+                categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
+                activeSectionId={activeSectionId}
+              />
+            </div>
           )}
         </div>
       </nav>
 
       {/* ============ 히어로 헤더 ============ */}
-      <header className="pt-48 md:pt-72 pb-20 px-6 text-center">
+      <header className="pt-36 md:pt-72 pb-12 md:pb-20 px-4 md:px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-8 px-5 py-2 bg-pink-100/50 rounded-full text-pink-600">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="animate-pulse">
@@ -451,7 +499,7 @@ export default function App() {
             </svg>
             <span className="text-xs font-black tracking-widest uppercase">Curated Links, Smarter Workflow</span>
           </div>
-          <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight mb-8 leading-[1.1]">
+          <h2 className="text-3xl md:text-6xl font-black text-slate-900 tracking-tight mb-6 md:mb-8 leading-[1.1]">
             쓸만한 사이트, <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-rose-400">여기 다 큐릿했어요.</span>
           </h2>
@@ -480,7 +528,7 @@ export default function App() {
           </div>
         ) : (
           filteredData.map((group) => (
-            <section key={group.id} id={group.slug} className="scroll-mt-56 mt-20">
+            <section key={group.id} id={group.slug} className="scroll-mt-32 md:scroll-mt-56 mt-12 md:mt-20">
               <div className="flex items-center gap-4 mb-10 pb-4 border-b border-pink-100">
                 <h3 className="text-3xl font-black text-slate-900 tracking-tight">{group.name}</h3>
                 <span className="text-pink-300 text-sm font-bold">{group.items.length} 리소스</span>
