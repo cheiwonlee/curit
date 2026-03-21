@@ -1,0 +1,24 @@
+{
+  "name": "curit - 쓸만한 사이트, 여기 다 큐릿했어요",
+  "short_name": "curit",
+  "description": "디자인, 취업, 부동산, 재테크까지 — 유용한 사이트 큐레이션",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF5F7",
+  "theme_color": "#EC4899",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

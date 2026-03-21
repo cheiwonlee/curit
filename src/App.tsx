@@ -19,6 +19,8 @@ import SiteRequestPage from './components/SiteRequestPage';
 import MySitesPage from './components/MySitesPage';
 import ScrollToTopButton from './components/ScrollToTopButton';
 import { useActiveSection } from './hooks/useActiveSection';
+import CategoryReorderPage from './components/CategoryReorderPage';
+import FooterPages from './components/FooterPages';
 
 import type { SortMode } from './components/SortDropdown';
 
@@ -52,6 +54,13 @@ export default function App() {
 
   // 즐겨찾기
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+
+  const [showReorder, setShowReorder] = useState(false);
+  const [footerPage, setFooterPage] = useState<'guide' | 'faq' | 'privacy' | 'terms' | null>(null);
+  const [customCategoryOrder, setCustomCategoryOrder] = useState<number[]>(() => {
+  const saved = localStorage.getItem('curit-category-order');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // ============================================================
   // 데이터 로딩
@@ -125,11 +134,18 @@ export default function App() {
       setShowSignup(h === '#signup');
       setShowSiteRequest(h === '#request');
       setShowMySites(h === '#mysites');
+      setShowReorder(h === '#reorder');
+      setFooterPage(
+        h === '#guide' ? 'guide' :
+        h === '#faq' ? 'faq' :
+        h === '#privacy' ? 'privacy' :
+        h === '#terms' ? 'terms' : null
+      );
       if (!h || h === '#') setShowAuthModal(false);
     };
     window.addEventListener('popstate', handle);
     return () => window.removeEventListener('popstate', handle);
-  }, []);
+  }, [])
 
   // ============================================================
   // 즐겨찾기 토글
@@ -145,12 +161,26 @@ export default function App() {
   // ============================================================
   // 데이터 결합 + 검색 + 정렬
   // ============================================================
-  const websiteData: CategoryWithSites[] = useMemo(() => {
-    return categories.map((cat) => ({
+    const websiteData: CategoryWithSites[] = useMemo(() => {
+    const base = categories.map((cat) => ({
       ...cat,
       items: sites.filter((site) => site.category_id === cat.id),
     }));
-  }, [categories, sites]);
+ 
+    // 커스텀 순서 적용
+    if (customCategoryOrder.length > 0) {
+      base.sort((a, b) => {
+        const aIdx = customCategoryOrder.indexOf(a.id);
+        const bIdx = customCategoryOrder.indexOf(b.id);
+        if (aIdx === -1 && bIdx === -1) return 0;
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+      });
+    }
+ 
+    return base;
+  }, [categories, sites, customCategoryOrder]);
 
   const filteredData = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
@@ -248,6 +278,21 @@ export default function App() {
       onBack={() => goHome(setShowMySites)} />
   );
 
+  if (showReorder) return (
+    <CategoryReorderPage
+      categories={websiteData.map((g) => ({ id: g.id, name: g.name, slug: g.slug }))}
+      onBack={() => goHome(setShowReorder)}
+      onSave={(ids) => setCustomCategoryOrder(ids)}
+    />
+  );
+ 
+  if (footerPage) return (
+    <FooterPages
+      page={footerPage}
+      onBack={() => { setFooterPage(null); window.history.pushState({}, '', window.location.pathname); }}
+    />
+  );
+
   // ============================================================
   // 메인 UI
   // ============================================================
@@ -292,7 +337,8 @@ export default function App() {
 
           {/* 정렬 드롭다운 + 카테고리 탭 */}
           <div className="flex items-center gap-2 mt-4">
-            <SortDropdown value={sortMode} onChange={setSortMode} />
+            <SortDropdown value={sortMode} onChange={setSortMode}
+              onReorderClick={() => goTo('reorder', setShowReorder)} />
             {sortMode === 'category' && (
               <div className="flex-1 overflow-hidden">
                 <CategoryTabs
@@ -376,20 +422,21 @@ export default function App() {
               <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
               <ul className="space-y-2.5">
                 <li><button onClick={() => goTo('request', setShowSiteRequest)} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</button></li>
-                <li><a href="mailto:curit.help@gmail.com?subject=[curit] 문의" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">문의하기</a></li>
+                <li><button onClick={() => { setFooterPage('guide'); window.history.pushState({}, '', '#guide'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
+                <li><button onClick={() => { setFooterPage('faq'); window.history.pushState({}, '', '#faq'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
               <ul className="space-y-2.5">
-                <li><span className="text-sm text-slate-400">개인정보 처리방침</span></li>
-                <li><span className="text-sm text-slate-400">이용약관</span></li>
+                <li><button onClick={() => { setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
+                <li><button onClick={() => { setFooterPage('terms'); window.history.pushState({}, '', '#terms'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">문의</h4>
               <ul className="space-y-2.5">
-                <li><a href="mailto:curit.help@gmail.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">curit.help@gmail.com</a></li>
+                <li><a href="mailto:sarah0w0@naver.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">sarah0w0@naver.com</a></li>
               </ul>
             </div>
             <div>
