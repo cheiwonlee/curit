@@ -13,6 +13,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../types';
 import CuritLogo from './CuritLogo';
+import { generateRandomNickname } from '../utils/randomNickname';
+
 
 interface MyPageProps {
   profile: Profile | null;
@@ -269,23 +271,24 @@ export default function MyPage({ profile, userEmail, authProvider, onBack, onPro
               <label className="block text-xs font-bold text-slate-400 mb-1.5">닉네임</label>
               {editingNickname ? (
                 <div className="flex gap-2">
-                  <input
-                    value={nickname}
+                  <input value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-pink-300"
-                    autoFocus
-                  />
+                    autoFocus />
                   <button
-                    onClick={handleSaveNickname}
-                    disabled={saving || !nickname.trim()}
-                    className="px-4 py-3 bg-pink-500 text-white rounded-2xl text-xs font-bold hover:bg-pink-600 transition-colors shrink-0 disabled:opacity-50"
+                    onClick={() => setNickname(generateRandomNickname())}
+                    className="px-3 py-3 bg-pink-100 text-pink-500 rounded-2xl text-sm font-bold hover:bg-pink-200 transition-colors shrink-0"
+                    title="랜덤 닉네임"
                   >
+                    🎲
+                  </button>
+                  <button onClick={handleSaveNickname}
+                    disabled={saving || !nickname.trim()}
+                    className="px-4 py-3 bg-pink-500 text-white rounded-2xl text-xs font-bold hover:bg-pink-600 transition-colors shrink-0 disabled:opacity-50">
                     {saving ? '저장 중...' : '저장'}
                   </button>
-                  <button
-                    onClick={() => { setEditingNickname(false); setNickname(currentNickname); }}
-                    className="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-xs font-bold hover:bg-slate-200 transition-colors shrink-0"
-                  >
+                  <button onClick={() => { setEditingNickname(false); setNickname(currentNickname); }}
+                    className="px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-xs font-bold hover:bg-slate-200 transition-colors shrink-0">
                     취소
                   </button>
                 </div>

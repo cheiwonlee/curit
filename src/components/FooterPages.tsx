@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import CuritLogo from './CuritLogo';
 
-type PageType = 'guide' | 'faq' | 'privacy' | 'terms';
+type PageType = 'guide' | 'faq' | 'privacy' | 'terms' | 'cookie';
 
 interface FooterPagesProps {
   page: PageType;
@@ -20,6 +20,7 @@ export default function FooterPages({ page, onBack }: FooterPagesProps) {
     faq: '자주 묻는 질문',
     privacy: '개인정보 처리방침',
     terms: '이용약관',
+    cookie: '쿠키 정책',
   };
 
   return (
@@ -45,6 +46,7 @@ export default function FooterPages({ page, onBack }: FooterPagesProps) {
           {page === 'faq' && <FaqPage />}
           {page === 'privacy' && <PrivacyPage />}
           {page === 'terms' && <TermsPage />}
+          {page === 'cookie' && <CookiePolicyPage />}
         </div>
       </main>
     </div>
@@ -295,6 +297,51 @@ function TermsPage() {
 
       <Section title="문의">
         서비스 관련 문의: curit.help@gmail.com
+      </Section>
+    </div>
+  );
+}
+
+function CookiePolicyPage() {
+  return (
+    <div className="prose-pink">
+      <h1 className="text-3xl font-black text-slate-900 mb-2">쿠키 정책</h1>
+      <p className="text-sm text-slate-400 mb-8">시행일: 2026년 3월 1일</p>
+
+      <Section title="1. 쿠키란?">
+        쿠키(Cookie)는 웹사이트가 사용자의 브라우저에 저장하는 작은 텍스트 파일입니다.
+        쿠키를 통해 웹사이트는 사용자의 설정, 로그인 상태 등을 기억할 수 있습니다.
+      </Section>
+
+      <Section title="2. curit에서 사용하는 쿠키">
+        curit은 다음과 같은 목적으로 브라우저 저장소를 사용합니다.
+
+        필수 쿠키 (로그인 세션):
+        Supabase 인증 토큰을 localStorage에 저장하여 로그인 상태를 유지합니다.
+        이 데이터 없이는 로그인 기능을 사용할 수 없습니다.
+
+        기능 쿠키 (사용자 설정):
+        카테고리 순서 변경 정보를 localStorage에 저장하여 개인화된 경험을 제공합니다.
+      </Section>
+
+      <Section title="3. 사용하지 않는 쿠키">
+        curit은 다음과 같은 쿠키를 사용하지 않습니다.
+        광고 및 마케팅 목적의 쿠키 (사용하지 않음)
+        제3자 추적 쿠키 (사용하지 않음)
+        분석 쿠키 (Google Analytics 등 사용하지 않음)
+      </Section>
+
+      <Section title="4. 쿠키 관리 방법">
+        브라우저 설정에서 쿠키를 삭제하거나 차단할 수 있습니다.
+        단, 쿠키를 차단하면 로그인이 유지되지 않을 수 있습니다.
+
+        Chrome: 설정 → 개인정보 보호 및 보안 → 쿠키 및 기타 사이트 데이터
+        Safari: 환경설정 → 개인정보 보호
+        Firefox: 설정 → 개인 정보 및 보안
+      </Section>
+
+      <Section title="5. 문의">
+        쿠키 정책에 관한 문의: curit.help@gmail.com
       </Section>
     </div>
   );

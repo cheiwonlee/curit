@@ -13,10 +13,11 @@ import { supabase } from '../lib/supabase';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSignupClick: () => void;  // 회원가입 페이지로 이동
+  onSignupClick: () => void;
+  onFindAccountClick: () => void;  // ← 추가
 }
 
-export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccountClick }: AuthModalProps) {
   const [loginId, setLoginId] = useState('');    // 아이디 또는 이메일
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -150,6 +151,16 @@ export default function AuthModal({ isOpen, onClose, onSignupClick }: AuthModalP
         >
           {loading ? '로그인 중...' : '로그인'}
         </button>
+
+        {/* 계정 찾기 */}
+            <button
+              onClick={() => { onClose(); onFindAccountClick(); }}
+              className="w-full text-center text-xs text-pink-400 hover:underline"
+            >
+              아이디/비밀번호를 잊으셨나요?
+            </button>
+
+
 
         {/* 회원가입 링크 */}
         <p className="text-center text-xs text-slate-400 mt-4">

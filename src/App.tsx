@@ -24,6 +24,11 @@ import FooterPages from './components/FooterPages';
 
 import type { SortMode } from './components/SortDropdown';
 
+import PasswordResetPage from './components/PasswordResetPage';
+
+
+
+
 export default function App() {
   // ============================================================
   // 상태(State)
@@ -140,8 +145,10 @@ export default function App() {
         h === '#guide' ? 'guide' :
         h === '#faq' ? 'faq' :
         h === '#privacy' ? 'privacy' :
-        h === '#terms' ? 'terms' : null
+        h === '#terms' ? 'terms' :
+        h === '#cookie' ? 'cookie' : null
       );
+      setShowPasswordReset(h === '#find-account');
       if (!h || h === '#') setShowAuthModal(false);
     };
     window.addEventListener('popstate', handle);
@@ -261,6 +268,13 @@ export default function App() {
     />
   );
 
+  if (showPasswordReset) return (
+    <PasswordResetPage
+      onBack={() => { goHome(setShowPasswordReset); setShowAuthModal(true); }}
+      onComplete={() => { goHome(setShowPasswordReset); setShowAuthModal(true); }}
+    />
+  );
+
   if (showMyPage) return (
     <MyPage profile={profile} userEmail={userEmail} authProvider={authProvider}
       onBack={() => goHome(setShowMyPage)}
@@ -306,7 +320,9 @@ export default function App() {
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
       <AuthModal isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onSignupClick={() => goTo('signup', setShowSignup)} />
+        onSignupClick={() => goTo('signup', setShowSignup)}
+        onFindAccountClick={() => goTo('find-account', setShowPasswordReset)}
+      />
 
       {/* 네비게이션 */}
       <nav className="fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm">
@@ -435,8 +451,9 @@ export default function App() {
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
               <ul className="space-y-2.5">
-                <li><button onClick={() => { setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
-                <li><button onClick={() => { setFooterPage('terms'); window.history.pushState({}, '', '#terms'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
+                <li><button onClick={() => { setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
+                <li><button onClick={() => { setFooterPage('terms'); window.history.pushState({}, '', '#terms'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
+                <li><button onClick={() => { setFooterPage('cookie' as any); window.history.pushState({}, '', '#cookie'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">쿠키 정책</button></li>
               </ul>
             </div>
             <div>
