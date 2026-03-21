@@ -116,8 +116,6 @@ export default function App() {
           setAuthProvider(null);
           setProfile(null);
           setFavoriteIds(new Set());
-          setUserSiteFavIds(new Set());
-          setUserSiteFavorites([]);
         }
       }
     );
