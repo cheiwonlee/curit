@@ -1,5 +1,8 @@
 // ============================================================
-// src/hooks/useActiveSection.ts — 스크롤 감지 (전체보기 지원)
+// src/hooks/useActiveSection.ts — 스크롤 기반 카테고리 감지
+//
+// Intersection Observer 대신 scroll 이벤트 사용
+// → 더 정확하고 안정적
 // ============================================================
 
 import { useState, useEffect } from 'react';
@@ -10,31 +13,51 @@ export function useActiveSection(sectionIds: string[]) {
   useEffect(() => {
     if (sectionIds.length === 0) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const offset = 300; // 네비게이션 높이 + 여유
 
-        if (visible.length > 0) {
-          setActiveId(visible[0].target.id);
-        } else {
-          // 아무 섹션도 안 보이면 null → "전체보기" 활성화
-          setActiveId(null);
-        }
-      },
-      {
-        rootMargin: '-200px 0px -40% 0px',
-        threshold: 0,
+      // 맨 위에 있으면 전체보기
+      if (scrollY < 400) {
+        setActiveId(null);
+        return;
       }
-    );
 
-    sectionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
+      // 각 섹션의 위치를 확인하여 현재 보이는 섹션 찾기
+      let current: string | null = null;
 
-    return () => observer.disconnect();
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        const rect = el.getBoundingClientRect();
+        // 섹션의 상단이 화면 상단 + offset 아래에 있으면 아직 안 지나침
+        // 섹션의 하단이 화면 상단 + offset 위에 있으면 이미 지나침
+        if (rect.top <= offset) {
+          current = id;
+        }
+      }
+
+      setActiveId(current);
+    };
+
+    // 초기 실행
+    handleScroll();
+
+    // 스크롤 이벤트 (throttle로 성능 최적화)
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, [sectionIds]);
 
   return activeId;
