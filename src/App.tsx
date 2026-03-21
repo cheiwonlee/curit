@@ -381,6 +381,28 @@ export default function App() {
   return (
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
 
+      {/* 앱 내 브라우저 안내 배너 */}
+      {/kakaotalk|instagram|fbav|line|naver/i.test(navigator.userAgent) && (
+        <div className="fixed top-0 inset-x-0 z-[200] bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-center">
+          <p className="text-xs text-yellow-800 font-medium">
+            앱 내 브라우저에서는 일부 기능이 제한됩니다.
+            <button
+              onClick={() => {
+                const ua = navigator.userAgent.toLowerCase();
+                if (/kakaotalk/i.test(ua)) {
+                  window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+                } else {
+                  alert('우측 상단 메뉴(⋯)에서\n"기본 브라우저로 열기"를 선택해주세요.');
+                }
+              }}
+              className="ml-2 text-yellow-600 font-bold underline"
+            >
+              브라우저로 열기
+            </button>
+          </p>
+        </div>
+      )}
+
       {/* 로그인 모달 */}
       <AuthModal
         isOpen={showAuthModal}

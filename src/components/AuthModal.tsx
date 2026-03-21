@@ -70,6 +70,36 @@ export default function AuthModal({ isOpen, onClose, onSignupClick, onFindAccoun
       email = foundEmail;
     }
 
+    const handleSocialLogin = async (provider: 'google') => {
+    // 앱 내 브라우저 감지 (카카오톡, 인스타, 라인, 페북 등)
+    const ua = navigator.userAgent.toLowerCase();
+    const isInAppBrowser = /kakaotalk|instagram|fbav|fban|line|naver|daum|twitterbot/i.test(ua);
+
+    if (isInAppBrowser) {
+      // 외부 브라우저로 열기
+      const currentUrl = window.location.href;
+      if (/kakaotalk/i.test(ua)) {
+        // 카카오톡: 'kakaotalk://web/openExternal?url=' 사용
+        window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
+      } else {
+        // 그 외: intent 또는 안내 메시지
+        alert('앱 내 브라우저에서는 Google 로그인이 지원되지 않습니다.\n\n우측 상단 메뉴(⋯)에서 "기본 브라우저로 열기"를 선택해주세요.');
+      }
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
