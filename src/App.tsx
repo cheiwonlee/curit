@@ -77,7 +77,7 @@ export default function App() {
   // ============================================================
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         if (window.location.hash && window.location.hash.includes('access_token')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
