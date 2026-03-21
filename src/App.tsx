@@ -217,6 +217,7 @@ export default function App() {
   const goTo = (page: string, setter: (v: boolean) => void) => {
     setter(true);
     window.history.pushState({}, '', '#' + page);
+    window.scrollTo(0, 0);  // 서브 페이지는 항상 최상단
   };
   const goHome = (setter: (v: boolean) => void) => {
     setter(false);
@@ -340,12 +341,10 @@ export default function App() {
             <SortDropdown value={sortMode} onChange={setSortMode}
               onReorderClick={() => goTo('reorder', setShowReorder)} />
             {sortMode === 'category' && (
-              <div className="flex-1 overflow-hidden">
-                <CategoryTabs
-                  categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
-                  activeSectionId={activeSectionId}
-                />
-              </div>
+              <CategoryTabs
+                categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
+                activeSectionId={activeSectionId}
+              />
             )}
             {sortMode !== 'category' && (
               <span className="text-xs text-pink-300 font-medium">
@@ -422,15 +421,15 @@ export default function App() {
               <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
               <ul className="space-y-2.5">
                 <li><button onClick={() => goTo('request', setShowSiteRequest)} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</button></li>
-                <li><button onClick={() => { setFooterPage('guide'); window.history.pushState({}, '', '#guide'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
-                <li><button onClick={() => { setFooterPage('faq'); window.history.pushState({}, '', '#faq'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
+                <li><button onClick={() => { setFooterPage('guide'); window.history.pushState({}, '', '#guide'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
+                <li><button onClick={() => { setFooterPage('faq'); window.history.pushState({}, '', '#faq'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
               <ul className="space-y-2.5">
-                <li><button onClick={() => { setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
-                <li><button onClick={() => { setFooterPage('terms'); window.history.pushState({}, '', '#terms'); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
+                <li><button onClick={() => { setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
+                <li><button onClick={() => { setFooterPage('terms'); window.history.pushState({}, '', '#terms'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
               </ul>
             </div>
             <div>
