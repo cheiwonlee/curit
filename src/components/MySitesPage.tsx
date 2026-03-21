@@ -55,11 +55,11 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
   };
 
   // 사용자가 입력한 카테고리 + 기본 카테고리 합치기
-  const allCategories = useMemo(() => {
-    const userCats = sites.map((s) => s.category);
-    const merged = new Set([...DEFAULT_CATEGORIES, ...userCats]);
-    return Array.from(merged).sort();
-  }, [sites]);
+//   const _allCategories = useMemo(() => {
+//     const userCats = sites.map((s) => s.category);
+//     const merged = new Set([...DEFAULT_CATEGORIES, ...userCats]);
+//     return Array.from(merged).sort();
+//   }, [sites]);
 
   // 검색 + 그룹
   const filteredSites = useMemo(() => {
