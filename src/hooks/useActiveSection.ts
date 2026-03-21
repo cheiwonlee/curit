@@ -1,17 +1,7 @@
 // ============================================================
-// src/hooks/useActiveSection.ts
-//
-// 스크롤 시 현재 보이는 카테고리 섹션을 감지하는 커스텀 Hook
-//
-// Intersection Observer란?
-//   → "이 요소가 화면(뷰포트)에 들어왔는지" 감지하는 브라우저 API
-//   → 스크롤 이벤트를 직접 감지하는 것보다 성능이 훨씬 좋음
-//
-// 동작:
-//   1. 각 카테고리 섹션의 slug ID를 전달받음
-//   2. 화면에 보이는 섹션의 slug를 반환
-//   3. CategoryTabs에서 해당 탭을 하이라이트
+// src/hooks/useActiveSection.ts — 스크롤 감지 (전체보기 지원)
 // ============================================================
+
 import { useState, useEffect } from 'react';
 
 export function useActiveSection(sectionIds: string[]) {
