@@ -76,7 +76,7 @@ export default function SiteRequestPage({ categories, userId, onBack }: SiteRequ
     const body = encodeURIComponent(
       '사이트 링크: \n사이트명: \n카테고리: \n간단한 설명: \n'
     );
-    window.location.href = `mailto:sarah0w0@naver.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:curit.help@gmail.com?subject=${subject}&body=${body}`;
   };
 
   return (

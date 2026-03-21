@@ -373,7 +373,7 @@ export default function App() {
               <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
               <ul className="space-y-2.5">
                 <li><button onClick={() => goTo('request', setShowSiteRequest)} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</button></li>
-                <li><a href="mailto:sarah0w0@naver.com?subject=[curit] 문의" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">문의하기</a></li>
+                <li><a href="mailto:curit.help@gmail.com?subject=[curit] 문의" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">문의하기</a></li>
               </ul>
             </div>
             <div>
@@ -386,7 +386,7 @@ export default function App() {
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">문의</h4>
               <ul className="space-y-2.5">
-                <li><a href="mailto:sarah0w0@naver.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">sarah0w0@naver.com</a></li>
+                <li><a href="mailto:curit.help@gmail.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">curit.help@gmail.com</a></li>
               </ul>
             </div>
             <div>
