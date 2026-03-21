@@ -62,6 +62,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [savedScrollY, setSavedScrollY] = useState(0);
   // ============================================================
   // 데이터 로딩
   // ============================================================
@@ -215,13 +216,17 @@ export default function App() {
 
   // 페이지 이동 헬퍼
   const goTo = (page: string, setter: (v: boolean) => void) => {
+    setSavedScrollY(window.scrollY);  // 현재 스크롤 위치 저장
     setter(true);
     window.history.pushState({}, '', '#' + page);
-    window.scrollTo(0, 0);  // 서브 페이지는 항상 최상단
+    window.scrollTo(0, 0);
   };
+
   const goHome = (setter: (v: boolean) => void) => {
     setter(false);
     window.history.pushState({}, '', window.location.pathname);
+    // 메인 페이지로 돌아올 때 이전 스크롤 위치 복원
+    setTimeout(() => window.scrollTo(0, savedScrollY), 50);
   };
 
   // ============================================================
@@ -336,22 +341,24 @@ export default function App() {
             />
           </div>
 
-          {/* 정렬 드롭다운 + 카테고리 탭 */}
-          <div className="flex items-center gap-2 mt-4">
+          {/* 정렬 드롭다운 */}
+          <div className="flex items-center gap-2 mt-3">
             <SortDropdown value={sortMode} onChange={setSortMode}
               onReorderClick={() => goTo('reorder', setShowReorder)} />
-            {sortMode === 'category' && (
-              <CategoryTabs
-                categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
-                activeSectionId={activeSectionId}
-              />
-            )}
             {sortMode !== 'category' && (
               <span className="text-xs text-pink-300 font-medium">
                 {sortMode === 'asc' ? 'ㄱ→ㅎ 순으로 정렬됨' : sortMode === 'desc' ? 'ㅎ→ㄱ 순으로 정렬됨' : '최근 등록된 순으로 정렬됨'}
               </span>
             )}
           </div>
+
+          {/* 카테고리 탭 (별도 행) */}
+          {sortMode === 'category' && (
+            <CategoryTabs
+              categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
+              activeSectionId={activeSectionId}
+            />
+          )}
         </div>
       </nav>
 
@@ -435,7 +442,7 @@ export default function App() {
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">문의</h4>
               <ul className="space-y-2.5">
-                <li><a href="mailto:sarah0w0@naver.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">sarah0w0@naver.com</a></li>
+                <li><a href="mailto:curit.help@gmail.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">curit.help@gmail.com</a></li>
               </ul>
             </div>
             <div>
