@@ -74,8 +74,6 @@ export default function App() {
   // 상태 — 북마크 (기존 사이트 + 나만의 사이트)
   // ============================================================
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
-  const [userSiteFavIds, setUserSiteFavIds] = useState<Set<number>>(new Set());
-  const [userSiteFavorites, setUserSiteFavorites] = useState<any[]>([]);
 
   // ============================================================
   // 데이터 로딩 — 카테고리 + 사이트
@@ -142,32 +140,6 @@ export default function App() {
         console.log('프로필 없음');
       }
 
-      // 기존 사이트 북마크 로드
-      try {
-        const { data: f } = await supabase
-          .from('favorites').select('site_id').eq('user_id', userId);
-        if (f) setFavoriteIds(new Set(f.map((x) => x.site_id)));
-      } catch (e) {
-        console.log('즐겨찾기 없음');
-      }
-
-      // 나만의 사이트 북마크 로드
-      try {
-        const { data: usFavs } = await supabase
-          .from('user_site_favorites').select('user_site_id').eq('user_id', userId);
-        if (usFavs) {
-          const ids = usFavs.map(f => f.user_site_id);
-          setUserSiteFavIds(new Set(ids));
-          if (ids.length > 0) {
-            const { data: sites } = await supabase
-              .from('user_sites').select('*').in('id', ids);
-            if (sites) setUserSiteFavorites(sites);
-          }
-        }
-      } catch (e) {
-        console.log('유저사이트 북마크 없음');
-      }
-
       // 로그인 후 리다이렉트
       if (loginRedirect === 'mypage') { setShowMyPage(true); setLoginRedirect(null); }
       else if (loginRedirect === 'bookmarks') { setShowFavorites(true); setLoginRedirect(null); }
@@ -218,23 +190,7 @@ export default function App() {
   // ============================================================
   // 즐겨찾기 토글 — 나만의 사이트
   // ============================================================
-  const handleToggleUserSiteFavorite = useCallback(async (siteId: number) => {
-    if (!userId) return;
-    const isFav = userSiteFavIds.has(siteId);
 
-    if (isFav) {
-      await supabase.from('user_site_favorites')
-        .delete().eq('user_id', userId).eq('user_site_id', siteId);
-      setUserSiteFavIds(prev => { const n = new Set(prev); n.delete(siteId); return n; });
-      setUserSiteFavorites(prev => prev.filter(s => s.id !== siteId));
-    } else {
-      await supabase.from('user_site_favorites')
-        .insert({ user_id: userId, user_site_id: siteId });
-      setUserSiteFavIds(prev => { const n = new Set(prev); n.add(siteId); return n; });
-      const { data } = await supabase.from('user_sites').select('*').eq('id', siteId).single();
-      if (data) setUserSiteFavorites(prev => [...prev, data]);
-    }
-  }, [userId, userSiteFavIds]);
 
   // ============================================================
   // 데이터 결합 + 커스텀 카테고리 순서
@@ -376,10 +332,9 @@ export default function App() {
     <FavoritesPage
       websiteData={websiteData}
       favoriteIds={favoriteIds}
+      userId={userId}
       onToggleFavorite={handleToggleFavorite}
       onBack={() => goHome(setShowFavorites)}
-      userSiteFavorites={userSiteFavorites}
-      onToggleUserSiteFavorite={handleToggleUserSiteFavorite}
     />
   );
 
