@@ -383,7 +383,7 @@ export default function App() {
 
       {/* 앱 내 브라우저 안내 배너 */}
       {/kakaotalk|instagram|fbav|line|naver/i.test(navigator.userAgent) && (
-        <div className="fixed top-0 inset-x-0 z-[200] bg-yellow-50 border-b border-yellow-200 px-4 py-3 text-center">
+        <div className="fixed top-0 inset-x-0 z-[200] bg-yellow-50 border-b border-yellow-200 px-4 py-2.5 text-center" id="inapp-banner">
           <p className="text-xs text-yellow-800 font-medium">
             앱 내 브라우저에서는 일부 기능이 제한됩니다.
             <button
@@ -412,9 +412,9 @@ export default function App() {
       />
 
       {/* 네비게이션 — 스크롤 내리면 숨김 */}
-      <nav className={`fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm transition-transform duration-300 ${
+      <nav className={`fixed inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm transition-transform duration-300 ${
         scrollDirection === 'down' ? '-translate-y-full' : 'translate-y-0'
-      }`}>
+      } ${/kakaotalk|instagram|fbav|line|naver/i.test(navigator.userAgent) ? 'top-10' : 'top-0'}`}>
         <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
 
           {/* 로고 + 검색 + 버튼 */}
