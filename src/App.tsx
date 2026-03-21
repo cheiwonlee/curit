@@ -1,11 +1,16 @@
 // ============================================================
-// src/App.tsx — Phase 1+3+4: 정렬 드롭다운 + 사이트 등록 + 내 사이트
+// src/App.tsx — curit 메인 앱
+//
+// 기능: 사이트 큐레이션, 검색, 정렬, 북마크, 인증, 라우팅
+// 업데이트: v5.2 (2026.03.21)
 // ============================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 import type { CategoryRow, SiteItem, CategoryWithSites, Profile } from './types';
+import type { SortMode } from './components/SortDropdown';
 
+// 컴포넌트
 import SearchBar from './components/SearchBar';
 import CategoryTabs from './components/CategoryTabs';
 import SiteCard from './components/SiteCard';
@@ -13,67 +18,67 @@ import AuthModal from './components/AuthModal';
 import NavButtons from './components/NavButtons';
 import MyPage from './components/MyPage';
 import SignupPage from './components/SignupPage';
+import PasswordResetPage from './components/PasswordResetPage';
 import FavoritesPage from './components/FavoritesPage';
 import SortDropdown from './components/SortDropdown';
 import SiteRequestPage from './components/SiteRequestPage';
 import MySitesPage from './components/MySitesPage';
-import ScrollToTopButton from './components/ScrollToTopButton';
-import { useActiveSection } from './hooks/useActiveSection';
 import CategoryReorderPage from './components/CategoryReorderPage';
 import FooterPages from './components/FooterPages';
-
-import type { SortMode } from './components/SortDropdown';
-
-import PasswordResetPage from './components/PasswordResetPage';
-
-
-
+import ScrollToTopButton from './components/ScrollToTopButton';
+import { useActiveSection } from './hooks/useActiveSection';
 
 export default function App() {
   // ============================================================
-  // 상태(State)
+  // 상태 — 검색 & 정렬
   // ============================================================
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('category');
+  const [customCategoryOrder, setCustomCategoryOrder] = useState<number[]>(() => {
+    const saved = localStorage.getItem('curit-category-order');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  // DB 데이터
+  // ============================================================
+  // 상태 — DB 데이터
+  // ============================================================
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [sites, setSites] = useState<SiteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 인증 관련
+  // ============================================================
+  // 상태 — 인증
+  // ============================================================
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authProvider, setAuthProvider] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // UI 상태
+  // ============================================================
+  // 상태 — UI (페이지 전환)
+  // ============================================================
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showMyPage, setShowMyPage] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showSiteRequest, setShowSiteRequest] = useState(false);
   const [showMySites, setShowMySites] = useState(false);
-  const [showPasswordReset, setShowPasswordReset] = useState(false);  // ← 이 줄 추가
-  const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | 'mysites' | null>(null);
-
-  // 즐겨찾기
-  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
-
   const [showReorder, setShowReorder] = useState(false);
   const [footerPage, setFooterPage] = useState<'guide' | 'faq' | 'privacy' | 'terms' | 'cookie' | null>(null);
-  const [customCategoryOrder, setCustomCategoryOrder] = useState<number[]>(() => {
-  const saved = localStorage.getItem('curit-category-order');
-
-    
-
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | 'mysites' | null>(null);
   const [savedScrollY, setSavedScrollY] = useState(0);
+
   // ============================================================
-  // 데이터 로딩
+  // 상태 — 북마크 (기존 사이트 + 나만의 사이트)
+  // ============================================================
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const [userSiteFavIds, setUserSiteFavIds] = useState<Set<number>>(new Set());
+  const [userSiteFavorites, setUserSiteFavorites] = useState<any[]>([]);
+
+  // ============================================================
+  // 데이터 로딩 — 카테고리 + 사이트
   // ============================================================
   useEffect(() => {
     async function fetchData() {
@@ -92,49 +97,88 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // 인증 (교착 방지: onAuthStateChange에서 await 금지)
+  // 인증 상태 감지
+  // ⚠️ onAuthStateChange 안에서 await 금지 (Supabase 교착 방지)
   // ============================================================
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        // OAuth 리다이렉트 후 URL 정리
         if (window.location.hash && window.location.hash.includes('access_token')) {
           window.history.replaceState({}, '', window.location.pathname);
         }
+
         if (session?.user) {
           setUserId(session.user.id);
           setUserEmail(session.user.email || null);
           setAuthProvider(session.user.app_metadata?.provider || 'email');
         } else {
-          setUserId(null); setUserEmail(null); setAuthProvider(null);
-          setProfile(null); setFavoriteIds(new Set());
+          setUserId(null);
+          setUserEmail(null);
+          setAuthProvider(null);
+          setProfile(null);
+          setFavoriteIds(new Set());
+          setUserSiteFavIds(new Set());
+          setUserSiteFavorites([]);
         }
       }
     );
     return () => subscription.unsubscribe();
   }, []);
 
-  // userId 변경 시 프로필+즐겨찾기 로드
+  // ============================================================
+  // userId 변경 시 → 프로필 + 즐겨찾기 + 내 사이트 북마크 로드
+  // ============================================================
   useEffect(() => {
     if (!userId) return;
-    const load = async () => {
-      try {
-        const { data: p } = await supabase.from('profiles').select('*').eq('id', userId).single();
-        if (p) setProfile(p);
-      } catch (e) { console.log('프로필 없음'); }
-      try {
-        const { data: f } = await supabase.from('favorites').select('site_id').eq('user_id', userId);
-        if (f) setFavoriteIds(new Set(f.map((x) => x.site_id)));
-      } catch (e) { console.log('즐겨찾기 없음'); }
 
+    const loadUserData = async () => {
+      // 프로필 로드
+      try {
+        const { data: p } = await supabase
+          .from('profiles').select('*').eq('id', userId).single();
+        if (p) setProfile(p);
+      } catch (e) {
+        console.log('프로필 없음');
+      }
+
+      // 기존 사이트 북마크 로드
+      try {
+        const { data: f } = await supabase
+          .from('favorites').select('site_id').eq('user_id', userId);
+        if (f) setFavoriteIds(new Set(f.map((x) => x.site_id)));
+      } catch (e) {
+        console.log('즐겨찾기 없음');
+      }
+
+      // 나만의 사이트 북마크 로드
+      try {
+        const { data: usFavs } = await supabase
+          .from('user_site_favorites').select('user_site_id').eq('user_id', userId);
+        if (usFavs) {
+          const ids = usFavs.map(f => f.user_site_id);
+          setUserSiteFavIds(new Set(ids));
+          if (ids.length > 0) {
+            const { data: sites } = await supabase
+              .from('user_sites').select('*').in('id', ids);
+            if (sites) setUserSiteFavorites(sites);
+          }
+        }
+      } catch (e) {
+        console.log('유저사이트 북마크 없음');
+      }
+
+      // 로그인 후 리다이렉트
       if (loginRedirect === 'mypage') { setShowMyPage(true); setLoginRedirect(null); }
       else if (loginRedirect === 'bookmarks') { setShowFavorites(true); setLoginRedirect(null); }
       else if (loginRedirect === 'mysites') { setShowMySites(true); setLoginRedirect(null); }
     };
-    load();
+
+    loadUserData();
   }, [userId]);
 
   // ============================================================
-  // 브라우저 뒤로가기
+  // 브라우저 뒤로가기 지원 (popstate)
   // ============================================================
   useEffect(() => {
     const handle = () => {
@@ -142,6 +186,7 @@ export default function App() {
       setShowMyPage(h === '#mypage');
       setShowFavorites(h === '#bookmarks');
       setShowSignup(h === '#signup');
+      setShowPasswordReset(h === '#find-account');
       setShowSiteRequest(h === '#request');
       setShowMySites(h === '#mysites');
       setShowReorder(h === '#reorder');
@@ -152,34 +197,55 @@ export default function App() {
         h === '#terms' ? 'terms' :
         h === '#cookie' ? 'cookie' : null
       );
-      setShowPasswordReset(h === '#find-account');
       if (!h || h === '#') setShowAuthModal(false);
     };
     window.addEventListener('popstate', handle);
     return () => window.removeEventListener('popstate', handle);
-  }, [])
+  }, []);
 
   // ============================================================
-  // 즐겨찾기 토글
+  // 즐겨찾기 토글 — 기존 사이트
   // ============================================================
   const handleToggleFavorite = useCallback((siteId: number) => {
     setFavoriteIds((prev) => {
       const next = new Set(prev);
-      if (next.has(siteId)) next.delete(siteId); else next.add(siteId);
+      if (next.has(siteId)) next.delete(siteId);
+      else next.add(siteId);
       return next;
     });
   }, []);
 
   // ============================================================
-  // 데이터 결합 + 검색 + 정렬
+  // 즐겨찾기 토글 — 나만의 사이트
   // ============================================================
-    const websiteData: CategoryWithSites[] = useMemo(() => {
+  const handleToggleUserSiteFavorite = useCallback(async (siteId: number) => {
+    if (!userId) return;
+    const isFav = userSiteFavIds.has(siteId);
+
+    if (isFav) {
+      await supabase.from('user_site_favorites')
+        .delete().eq('user_id', userId).eq('user_site_id', siteId);
+      setUserSiteFavIds(prev => { const n = new Set(prev); n.delete(siteId); return n; });
+      setUserSiteFavorites(prev => prev.filter(s => s.id !== siteId));
+    } else {
+      await supabase.from('user_site_favorites')
+        .insert({ user_id: userId, user_site_id: siteId });
+      setUserSiteFavIds(prev => { const n = new Set(prev); n.add(siteId); return n; });
+      const { data } = await supabase.from('user_sites').select('*').eq('id', siteId).single();
+      if (data) setUserSiteFavorites(prev => [...prev, data]);
+    }
+  }, [userId, userSiteFavIds]);
+
+  // ============================================================
+  // 데이터 결합 + 커스텀 카테고리 순서
+  // ============================================================
+  const websiteData: CategoryWithSites[] = useMemo(() => {
     const base = categories.map((cat) => ({
       ...cat,
       items: sites.filter((site) => site.category_id === cat.id),
     }));
- 
-    // 커스텀 순서 적용
+
+    // 커스텀 순서 적용 (localStorage)
     if (customCategoryOrder.length > 0) {
       base.sort((a, b) => {
         const aIdx = customCategoryOrder.indexOf(a.id);
@@ -190,12 +256,16 @@ export default function App() {
         return aIdx - bIdx;
       });
     }
- 
+
     return base;
   }, [categories, sites, customCategoryOrder]);
 
+  // ============================================================
+  // 검색 필터링 + 정렬
+  // ============================================================
   const filteredData = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
+
     let result = websiteData
       .map((group) => ({
         ...group,
@@ -209,26 +279,42 @@ export default function App() {
       }))
       .filter((group) => group.items.length > 0);
 
+    // 가나다순 / 최근 등록순
     if (sortMode !== 'category') {
       const allItems = result.flatMap((g) => g.items);
       if (sortMode === 'asc') allItems.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
       else if (sortMode === 'desc') allItems.sort((a, b) => b.name.localeCompare(a.name, 'ko'));
       else if (sortMode === 'recent') allItems.sort((a, b) => b.id - a.id);
 
-      const label = sortMode === 'asc' ? '가나다순 (ㄱ→ㅎ)' : sortMode === 'desc' ? '가나다순 (ㅎ→ㄱ)' : '최근 등록순';
+      const label = sortMode === 'asc' ? '가나다순 (ㄱ→ㅎ)'
+        : sortMode === 'desc' ? '가나다순 (ㅎ→ㄱ)'
+        : '최근 등록순';
       result = [{ id: 0, name: label, slug: 'sorted', sort_order: 0, items: allItems }];
     }
+
     return result;
   }, [searchTerm, websiteData, sortMode]);
 
+  // ============================================================
+  // Intersection Observer (카테고리 탭 하이라이트)
+  // ============================================================
   const sectionSlugs = useMemo(() => websiteData.map((g) => g.slug), [websiteData]);
   const activeSectionId = useActiveSection(sectionSlugs);
   const isLoggedIn = !!userId;
 
+  // ============================================================
   // 페이지 이동 헬퍼
+  // ============================================================
   const goTo = (page: string, setter: (v: boolean) => void) => {
-    setSavedScrollY(window.scrollY);  // 현재 스크롤 위치 저장
+    setSavedScrollY(window.scrollY);
     setter(true);
+    window.history.pushState({}, '', '#' + page);
+    window.scrollTo(0, 0);
+  };
+
+  const goToFooter = (page: 'guide' | 'faq' | 'privacy' | 'terms' | 'cookie') => {
+    setSavedScrollY(window.scrollY);
+    setFooterPage(page);
     window.history.pushState({}, '', '#' + page);
     window.scrollTo(0, 0);
   };
@@ -236,12 +322,11 @@ export default function App() {
   const goHome = (setter: (v: boolean) => void) => {
     setter(false);
     window.history.pushState({}, '', window.location.pathname);
-    // 메인 페이지로 돌아올 때 이전 스크롤 위치 복원
     setTimeout(() => window.scrollTo(0, savedScrollY), 50);
   };
 
   // ============================================================
-  // 로딩/에러
+  // 로딩 / 에러 화면
   // ============================================================
   if (loading) return (
     <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
@@ -263,7 +348,7 @@ export default function App() {
   );
 
   // ============================================================
-  // 서브 페이지들
+  // 서브 페이지 렌더링
   // ============================================================
   if (showSignup) return (
     <SignupPage
@@ -280,26 +365,35 @@ export default function App() {
   );
 
   if (showMyPage) return (
-    <MyPage profile={profile} userEmail={userEmail} authProvider={authProvider}
+    <MyPage
+      profile={profile} userEmail={userEmail} authProvider={authProvider}
       onBack={() => goHome(setShowMyPage)}
-      onProfileUpdate={(p) => setProfile(p)} />
+      onProfileUpdate={(p) => setProfile(p)}
+    />
   );
 
   if (showFavorites) return (
-    <FavoritesPage websiteData={websiteData} favoriteIds={favoriteIds} userId={userId}
+    <FavoritesPage
+      websiteData={websiteData}
+      favoriteIds={favoriteIds}
+      userId={userId}
       onToggleFavorite={handleToggleFavorite}
       onLoginRequired={() => setShowAuthModal(true)}
-      onBack={() => goHome(setShowFavorites)} />
+      onBack={() => goHome(setShowFavorites)}
+      userSiteFavorites={userSiteFavorites}
+      onToggleUserSiteFavorite={handleToggleUserSiteFavorite}
+    />
   );
 
   if (showSiteRequest) return (
-    <SiteRequestPage categories={categories} userId={userId}
-      onBack={() => goHome(setShowSiteRequest)} />
+    <SiteRequestPage
+      categories={categories} userId={userId}
+      onBack={() => goHome(setShowSiteRequest)}
+    />
   );
 
   if (showMySites && userId) return (
-    <MySitesPage userId={userId}
-      onBack={() => goHome(setShowMySites)} />
+    <MySitesPage userId={userId} onBack={() => goHome(setShowMySites)} />
   );
 
   if (showReorder) return (
@@ -309,7 +403,7 @@ export default function App() {
       onSave={(ids) => setCustomCategoryOrder(ids)}
     />
   );
- 
+
   if (footerPage) return (
     <FooterPages
       page={footerPage}
@@ -326,15 +420,20 @@ export default function App() {
   // ============================================================
   return (
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
-      <AuthModal isOpen={showAuthModal}
+
+      {/* 로그인 모달 */}
+      <AuthModal
+        isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onSignupClick={() => goTo('signup', setShowSignup)}
         onFindAccountClick={() => goTo('find-account', setShowPasswordReset)}
       />
 
-      {/* 네비게이션 */}
+      {/* ============ 네비게이션 ============ */}
       <nav className="fixed top-0 inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
+
+          {/* 로고 + 검색바 + 네비 버튼 */}
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="flex items-center gap-3 cursor-pointer shrink-0"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
@@ -348,7 +447,8 @@ export default function App() {
 
             <SearchBar value={searchTerm} onChange={setSearchTerm} />
 
-            <NavButtons isLoggedIn={isLoggedIn}
+            <NavButtons
+              isLoggedIn={isLoggedIn}
               onLoginClick={() => setShowAuthModal(true)}
               onMyPageClick={() => {
                 if (isLoggedIn) goTo('mypage', setShowMyPage);
@@ -367,16 +467,21 @@ export default function App() {
 
           {/* 정렬 드롭다운 */}
           <div className="flex items-center gap-2 mt-3">
-            <SortDropdown value={sortMode} onChange={setSortMode}
-              onReorderClick={() => goTo('reorder', setShowReorder)} />
+            <SortDropdown
+              value={sortMode}
+              onChange={setSortMode}
+              onReorderClick={() => goTo('reorder', setShowReorder)}
+            />
             {sortMode !== 'category' && (
               <span className="text-xs text-pink-300 font-medium">
-                {sortMode === 'asc' ? 'ㄱ→ㅎ 순으로 정렬됨' : sortMode === 'desc' ? 'ㅎ→ㄱ 순으로 정렬됨' : '최근 등록된 순으로 정렬됨'}
+                {sortMode === 'asc' ? 'ㄱ→ㅎ 순으로 정렬됨'
+                  : sortMode === 'desc' ? 'ㅎ→ㄱ 순으로 정렬됨'
+                  : '최근 등록된 순으로 정렬됨'}
               </span>
             )}
           </div>
 
-          {/* 카테고리 탭 (별도 행) */}
+          {/* 카테고리 탭 (카테고리순일 때만) */}
           {sortMode === 'category' && (
             <CategoryTabs
               categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
@@ -386,7 +491,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 히어로 */}
+      {/* ============ 히어로 헤더 ============ */}
       <header className="pt-48 md:pt-72 pb-20 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-8 px-5 py-2 bg-pink-100/50 rounded-full text-pink-600">
@@ -410,7 +515,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* 메인 콘텐츠 */}
+      {/* ============ 메인 콘텐츠 ============ */}
       <main className="max-w-7xl mx-auto px-4 pb-40">
         {filteredData.length === 0 ? (
           <div className="py-40 text-center">
@@ -431,10 +536,13 @@ export default function App() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {group.items.map((item) => (
-                  <SiteCard key={item.id} item={item}
-                    isFavorited={favoriteIds.has(item.id)} userId={userId}
+                  <SiteCard
+                    key={item.id} item={item}
+                    isFavorited={favoriteIds.has(item.id)}
+                    userId={userId}
                     onToggleFavorite={handleToggleFavorite}
-                    onLoginRequired={() => setShowAuthModal(true)} />
+                    onLoginRequired={() => setShowAuthModal(true)}
+                  />
                 ))}
               </div>
             </section>
@@ -444,7 +552,7 @@ export default function App() {
 
       <ScrollToTopButton />
 
-      {/* 푸터 */}
+      {/* ============ 푸터 ============ */}
       <footer className="bg-white border-t border-pink-100">
         <div className="max-w-7xl mx-auto px-6 py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
@@ -452,16 +560,16 @@ export default function App() {
               <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
               <ul className="space-y-2.5">
                 <li><button onClick={() => goTo('request', setShowSiteRequest)} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</button></li>
-                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('guide'); window.history.pushState({}, '', '#guide'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
-                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('faq'); window.history.pushState({}, '', '#faq'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
+                <li><button onClick={() => goToFooter('guide')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
+                <li><button onClick={() => goToFooter('faq')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
               <ul className="space-y-2.5">
-                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
-                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('terms'); window.history.pushState({}, '', '#terms'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
-                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('cookie' as any); window.history.pushState({}, '', '#cookie'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">쿠키 정책</button></li>
+                <li><button onClick={() => goToFooter('privacy')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
+                <li><button onClick={() => goToFooter('terms')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
+                <li><button onClick={() => goToFooter('cookie')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">쿠키 정책</button></li>
               </ul>
             </div>
             <div>
