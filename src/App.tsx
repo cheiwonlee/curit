@@ -376,9 +376,7 @@ export default function App() {
     <FavoritesPage
       websiteData={websiteData}
       favoriteIds={favoriteIds}
-      userId={userId}
       onToggleFavorite={handleToggleFavorite}
-      onLoginRequired={() => setShowAuthModal(true)}
       onBack={() => goHome(setShowFavorites)}
       userSiteFavorites={userSiteFavorites}
       onToggleUserSiteFavorite={handleToggleUserSiteFavorite}

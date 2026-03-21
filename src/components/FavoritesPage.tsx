@@ -6,7 +6,6 @@
 // ============================================================
 
 import { useState, useMemo } from 'react';
-import SiteCard from './SiteCard';
 import CuritLogo from './CuritLogo';
 import type { CategoryWithSites } from '../types';
 
@@ -29,9 +28,7 @@ type UnifiedItem = {
 interface FavoritesPageProps {
   websiteData: CategoryWithSites[];
   favoriteIds: Set<number>;
-  userId: string | null;
   onToggleFavorite: (siteId: number) => void;
-  onLoginRequired: () => void;
   onBack: () => void;
   userSiteFavorites?: { id: number; name: string; url: string; category: string; note: string | null }[];
   onToggleUserSiteFavorite?: (siteId: number) => void;
@@ -40,9 +37,7 @@ interface FavoritesPageProps {
 export default function FavoritesPage({
   websiteData,
   favoriteIds,
-  userId,
   onToggleFavorite,
-  onLoginRequired,
   onBack,
   userSiteFavorites = [],
   onToggleUserSiteFavorite,
