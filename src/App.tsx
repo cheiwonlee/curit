@@ -328,6 +328,9 @@ export default function App() {
             <br className="hidden md:block" />
             검색하고, 즐겨찾기하고, 나만의 링크 컬렉션을 만들어보세요.
           </p>
+          <p className="text-pink-300/60 text-sm mt-4">
+            curit = curation + it — "좋은 사이트를 골라 모으다"
+          </p>
         </div>
       </header>
 
