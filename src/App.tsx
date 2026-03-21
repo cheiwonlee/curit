@@ -57,13 +57,17 @@ export default function App() {
   const [showMySites, setShowMySites] = useState(false);
   const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | 'mysites' | null>(null);
 
+  const [_codeSent, setCodeSent] = useState(false);
   // 즐겨찾기
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
   const [showReorder, setShowReorder] = useState(false);
-  const [footerPage, setFooterPage] = useState<'guide' | 'faq' | 'privacy' | 'terms' | null>(null);
+  const [footerPage, setFooterPage] = useState<'guide' | 'faq' | 'privacy' | 'terms' | 'cookie' | null>(null);
   const [customCategoryOrder, setCustomCategoryOrder] = useState<number[]>(() => {
   const saved = localStorage.getItem('curit-category-order');
+
+    
+
     return saved ? JSON.parse(saved) : [];
   });
 
