@@ -313,7 +313,11 @@ export default function App() {
   if (footerPage) return (
     <FooterPages
       page={footerPage}
-      onBack={() => { setFooterPage(null); window.history.pushState({}, '', window.location.pathname); }}
+      onBack={() => {
+        setFooterPage(null);
+        window.history.pushState({}, '', window.location.pathname);
+        setTimeout(() => window.scrollTo(0, savedScrollY), 50);
+      }}
     />
   );
 
@@ -448,16 +452,16 @@ export default function App() {
               <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
               <ul className="space-y-2.5">
                 <li><button onClick={() => goTo('request', setShowSiteRequest)} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</button></li>
-                <li><button onClick={() => { setFooterPage('guide'); window.history.pushState({}, '', '#guide'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
-                <li><button onClick={() => { setFooterPage('faq'); window.history.pushState({}, '', '#faq'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
+                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('guide'); window.history.pushState({}, '', '#guide'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
+                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('faq'); window.history.pushState({}, '', '#faq'); window.scrollTo(0, 0);}} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
               <ul className="space-y-2.5">
-                <li><button onClick={() => { setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
-                <li><button onClick={() => { setFooterPage('terms'); window.history.pushState({}, '', '#terms'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
-                <li><button onClick={() => { setFooterPage('cookie' as any); window.history.pushState({}, '', '#cookie'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">쿠키 정책</button></li>
+                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('privacy'); window.history.pushState({}, '', '#privacy'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
+                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('terms'); window.history.pushState({}, '', '#terms'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
+                <li><button onClick={() => {  setSavedScrollY(window.scrollY); setFooterPage('cookie' as any); window.history.pushState({}, '', '#cookie'); window.scrollTo(0, 0); }} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">쿠키 정책</button></li>
               </ul>
             </div>
             <div>
