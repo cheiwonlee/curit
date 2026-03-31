@@ -193,17 +193,58 @@ export default function BulkUploadModal({
   // 양식 다운로드
   // ============================================================
   const downloadTemplate = () => {
-    const BOM = "\uFEFF";
-    const content =
-      BOM +
-      "사이트명,사이트 링크,카테고리,설명\nGoogle,https://www.google.com,검색,세계 최대 검색엔진\nNotion,https://www.notion.so,생산성,올인원 워크스페이스";
-    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "curit-일괄업로드-양식.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    // 헤더 + 예시 데이터
+    const data = [
+      ["사이트명", "사이트 링크", "카테고리", "설명"],
+      ["Google", "https://www.google.com", "기타", "세계 최대 검색엔진"],
+      ["Notion", "https://www.notion.so", "생산성", "올인원 워크스페이스"],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // 열 너비 설정
+    ws["!cols"] = [
+      { wch: 20 }, // 사이트명
+      { wch: 35 }, // 사이트 링크
+      { wch: 15 }, // 카테고리
+      { wch: 30 }, // 설명
+    ];
+
+    // 카테고리 드롭다운 (100행까지)
+    const categories = [
+      "미분류",
+      ...[
+        "디자인",
+        "개발",
+        "마케팅",
+        "취업",
+        "교육",
+        "부동산",
+        "재테크",
+        "생산성",
+        "엔터테인먼트",
+        "기타",
+      ],
+    ];
+    const formulaList = '"' + categories.join(",") + '"';
+
+    ws["!dataValidations"] = {
+      list: [
+        {
+          sqref: "C2:C101",
+          type: "list",
+          formula1: formulaList,
+          showDropDown: true,
+          error: "목록에서 카테고리를 선택하거나 직접 입력해주세요.",
+          errorTitle: "카테고리 선택",
+        },
+      ],
+    };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "사이트 목록");
+
+    XLSX.writeFile(wb, "curit-일괄업로드-양식.xlsx");
   };
 
   // ============================================================
