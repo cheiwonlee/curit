@@ -62,6 +62,10 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
   // 일괄 업로드
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
+  // [내 사이트] 선택 모드
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   // ============================================================
   // 데이터 로드
   // ============================================================
@@ -248,6 +252,70 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
   };
 
   // ============================================================
+  // 선택 모드, 사이트 추천하기
+  // ============================================================
+
+  // 선택 토글
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredSites.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredSites.map((s) => s.id)));
+    }
+  };
+
+  // 선택 모드 종료
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  // 선택 항목 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`선택한 ${selectedIds.size}개 사이트를 삭제하시겠습니까?`))
+      return;
+
+    for (const id of selectedIds) {
+      await supabase.from("user_sites").delete().eq("id", id);
+    }
+
+    exitSelectMode();
+    loadSites();
+  };
+
+  // 선택 항목 사이트 추천하기
+  const handleBulkRecommend = async () => {
+    if (selectedIds.size === 0) return;
+
+    const selectedSites = sites.filter((s) => selectedIds.has(s.id));
+
+    let success = 0;
+    for (const site of selectedSites) {
+      const { error } = await supabase.from("site_requests").insert({
+        user_id: userId,
+        site_url: site.url,
+        site_name: site.name,
+        description: site.note,
+      });
+      if (!error) success++;
+    }
+
+    alert(`${success}개 사이트를 추천했습니다!\n검토 후 curit에 반영됩니다.`);
+    exitSelectMode();
+  };
+
+  // ============================================================
   // CSV 다운로드
   // ============================================================
   const handleExport = () => {
@@ -354,49 +422,88 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
           </p>
         </div>
 
-        {/* 상단 버튼 */}
-        <div className="flex items-center gap-3 mb-8">
-          <button
-            onClick={openAddForm}
-            className="flex items-center gap-2 px-5 py-2.5 bg-pink-500 text-white rounded-2xl text-sm font-bold hover:bg-pink-600 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            사이트 추가
-          </button>
-
-          {/* 일괄 업로드 버튼 (새로 추가) */}
-          <button
-            onClick={() => setShowBulkUpload(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-pink-200 text-pink-500 rounded-2xl text-sm font-bold hover:bg-pink-50 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-            </svg>
-            일괄 업로드
-          </button>
-
-          {sites.length > 0 && (
+        {/* 상단 버튼 — 일반 모드 / 선택 모드 */}
+        {selectMode ? (
+          <div className="flex items-center gap-3 mb-8 p-4 bg-pink-50 rounded-2xl">
             <button
-              onClick={handleExport}
+              onClick={toggleSelectAll}
+              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-pink-200 text-pink-500 rounded-xl text-xs font-bold hover:bg-pink-100 transition-colors"
+            >
+              {selectedIds.size === filteredSites.length
+                ? "전체 해제"
+                : "전체 선택"}
+            </button>
+            <span className="text-xs text-pink-500 font-bold">
+              {selectedIds.size}개 선택됨
+            </span>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={handleBulkRecommend}
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-pink-200 text-pink-500 rounded-xl text-xs font-bold hover:bg-pink-100 transition-colors disabled:opacity-30"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+                추천하기
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-50 border border-red-200 text-red-500 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors disabled:opacity-30"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+                삭제
+              </button>
+              <button
+                onClick={exitSelectMode}
+                className="px-4 py-2 bg-slate-100 text-slate-500 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 mb-8">
+            <button
+              onClick={openAddForm}
+              className="flex items-center gap-2 px-5 py-2.5 bg-pink-500 text-white rounded-2xl text-sm font-bold hover:bg-pink-600 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              사이트 추가
+            </button>
+            <button
+              onClick={() => setShowBulkUpload(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-white border border-pink-200 text-pink-500 rounded-2xl text-sm font-bold hover:bg-pink-50 transition-colors"
             >
               <svg
@@ -408,12 +515,51 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
               </svg>
-              엑셀 다운로드
+              일괄 업로드
             </button>
-          )}
-        </div>
+            {sites.length > 0 && (
+              <>
+                <button
+                  onClick={() => setSelectMode(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-pink-200 text-pink-500 rounded-2xl text-sm font-bold hover:bg-pink-50 transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="9 11 12 14 22 4" />
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                  </svg>
+                  선택
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white border border-pink-200 text-pink-500 rounded-2xl text-sm font-bold hover:bg-pink-50 transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                  엑셀 다운로드
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* 사이트 목록 */}
         {loading ? (
@@ -459,22 +605,27 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
                     className="bg-white rounded-2xl border border-pink-50 hover:border-pink-200 transition-colors group overflow-hidden"
                   >
                     {/* 썸네일 */}
-                    <a
-                      href={site.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block aspect-[16/10] bg-pink-50/30 overflow-hidden relative"
-                    >
-                      <img
-                        src={getThumbnail(site)}
-                        alt={site.name}
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      {/* 하트 버튼 (썸네일 위) */}
+                    <a href={site.url} target="_blank" rel="noopener noreferrer"
+                      className="block aspect-[16/10] bg-pink-50/30 overflow-hidden relative">
+                      <img ... />
+
+                      {/* 선택 모드 체크박스 */}
+                      {selectMode && (
+                        <div
+                          onClick={(e) => { e.preventDefault(); toggleSelect(site.id); }}
+                          className={`absolute top-2 left-2 w-6 h-6 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all ${
+                            selectedIds.has(site.id)
+                              ? 'bg-pink-500 border-pink-500'
+                              : 'bg-white/80 border-slate-300 hover:border-pink-400'
+                          }`}
+                        >
+                          {selectedIds.has(site.id) && (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                          )}
+                        </div>
+                      )}
+                      {/* 하트 버튼 (기존) — 선택 모드가 아닐 때만 */}
+                      {!selectMode && (
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -499,7 +650,7 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
                         >
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                         </svg>
-                      </button>
+                      </button>)}
                     </a>
 
                     {/* 사이트 정보 */}
