@@ -5,41 +5,47 @@
 // 업데이트: v5.2 (2026.03.21)
 // ============================================================
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from './lib/supabase';
-import type { CategoryRow, SiteItem, CategoryWithSites, Profile } from './types';
-import type { SortMode } from './components/SortDropdown';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { supabase } from "./lib/supabase";
+import type {
+  CategoryRow,
+  SiteItem,
+  CategoryWithSites,
+  Profile,
+} from "./types";
+import type { SortMode } from "./components/SortDropdown";
 
 // 컴포넌트
-import SearchBar from './components/SearchBar';
-import CategoryTabs from './components/CategoryTabs';
-import SiteCard from './components/SiteCard';
-import AuthModal from './components/AuthModal';
-import NavButtons from './components/NavButtons';
-import MyPage from './components/MyPage';
-import SignupPage from './components/SignupPage';
-import PasswordResetPage from './components/PasswordResetPage';
-import FavoritesPage from './components/FavoritesPage';
-import SortDropdown from './components/SortDropdown';
-import SiteRequestPage from './components/SiteRequestPage';
-import MySitesPage from './components/MySitesPage';
-import CategoryReorderPage from './components/CategoryReorderPage';
-import FooterPages from './components/FooterPages';
-import ScrollToTopButton from './components/ScrollToTopButton';
-import { useActiveSection } from './hooks/useActiveSection';
-import { useScrollDirection } from './hooks/useScrollDirection';
-
+import SearchBar from "./components/SearchBar";
+import CategoryTabs from "./components/CategoryTabs";
+import SiteCard from "./components/SiteCard";
+import AuthModal from "./components/AuthModal";
+import NavButtons from "./components/NavButtons";
+import MyPage from "./components/MyPage";
+import SignupPage from "./components/SignupPage";
+import PasswordResetPage from "./components/PasswordResetPage";
+import FavoritesPage from "./components/FavoritesPage";
+import SortDropdown from "./components/SortDropdown";
+import SiteRequestPage from "./components/SiteRequestPage";
+import MySitesPage from "./components/MySitesPage";
+import CategoryReorderPage from "./components/CategoryReorderPage";
+import FooterPages from "./components/FooterPages";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import { useActiveSection } from "./hooks/useActiveSection";
+import { useScrollDirection } from "./hooks/useScrollDirection";
 
 export default function App() {
   // ============================================================
   // 상태 — 검색 & 정렬
   // ============================================================
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>('category');
-  const [customCategoryOrder, setCustomCategoryOrder] = useState<number[]>(() => {
-    const saved = localStorage.getItem('curit-category-order');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("category");
+  const [customCategoryOrder, setCustomCategoryOrder] = useState<number[]>(
+    () => {
+      const saved = localStorage.getItem("curit-category-order");
+      return saved ? JSON.parse(saved) : [];
+    },
+  );
 
   // ============================================================
   // 상태 — DB 데이터
@@ -68,8 +74,12 @@ export default function App() {
   const [showSiteRequest, setShowSiteRequest] = useState(false);
   const [showMySites, setShowMySites] = useState(false);
   const [showReorder, setShowReorder] = useState(false);
-  const [footerPage, setFooterPage] = useState<'guide' | 'faq' | 'privacy' | 'terms' | 'cookie' | null>(null);
-  const [loginRedirect, setLoginRedirect] = useState<'mypage' | 'bookmarks' | 'mysites' | null>(null);
+  const [footerPage, setFooterPage] = useState<
+    "guide" | "faq" | "privacy" | "terms" | "cookie" | null
+  >(null);
+  const [loginRedirect, setLoginRedirect] = useState<
+    "mypage" | "bookmarks" | "mysites" | null
+  >(null);
   const [savedScrollY, setSavedScrollY] = useState(0);
 
   // ============================================================
@@ -77,7 +87,7 @@ export default function App() {
   // ============================================================
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
 
-    // ============================================================
+  // ============================================================
   // 모바일 최적화: 네비 숨김, 검색바 축소, 카테고리 토글
   // ============================================================
 
@@ -90,12 +100,18 @@ export default function App() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const { data: catData } = await supabase.from('categories').select('*').order('sort_order');
-        const { data: siteData } = await supabase.from('sites').select('*').order('sort_order');
+        const { data: catData } = await supabase
+          .from("categories")
+          .select("*")
+          .order("sort_order");
+        const { data: siteData } = await supabase
+          .from("sites")
+          .select("*")
+          .order("sort_order");
         setCategories(catData || []);
         setSites(siteData || []);
       } catch (err) {
-        setError('데이터 로딩 실패');
+        setError("데이터 로딩 실패");
       } finally {
         setLoading(false);
       }
@@ -108,26 +124,29 @@ export default function App() {
   // ⚠️ onAuthStateChange 안에서 await 금지 (Supabase 교착 방지)
   // ============================================================
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        // OAuth 리다이렉트 후 URL 정리
-        if (window.location.hash && window.location.hash.includes('access_token')) {
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-
-        if (session?.user) {
-          setUserId(session.user.id);
-          setUserEmail(session.user.email || null);
-          setAuthProvider(session.user.app_metadata?.provider || 'email');
-        } else {
-          setUserId(null);
-          setUserEmail(null);
-          setAuthProvider(null);
-          setProfile(null);
-          setFavoriteIds(new Set());
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      // OAuth 리다이렉트 후 URL 정리
+      if (
+        window.location.hash &&
+        window.location.hash.includes("access_token")
+      ) {
+        window.history.replaceState({}, "", window.location.pathname);
       }
-    );
+
+      if (session?.user) {
+        setUserId(session.user.id);
+        setUserEmail(session.user.email || null);
+        setAuthProvider(session.user.app_metadata?.provider || "email");
+      } else {
+        setUserId(null);
+        setUserEmail(null);
+        setAuthProvider(null);
+        setProfile(null);
+        setFavoriteIds(new Set());
+      }
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -141,16 +160,26 @@ export default function App() {
       // 프로필 로드
       try {
         const { data: p } = await supabase
-          .from('profiles').select('*').eq('id', userId).single();
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
         if (p) setProfile(p);
       } catch (e) {
-        console.log('프로필 없음');
+        console.log("프로필 없음");
       }
 
       // 로그인 후 리다이렉트
-      if (loginRedirect === 'mypage') { setShowMyPage(true); setLoginRedirect(null); }
-      else if (loginRedirect === 'bookmarks') { setShowFavorites(true); setLoginRedirect(null); }
-      else if (loginRedirect === 'mysites') { setShowMySites(true); setLoginRedirect(null); }
+      if (loginRedirect === "mypage") {
+        setShowMyPage(true);
+        setLoginRedirect(null);
+      } else if (loginRedirect === "bookmarks") {
+        setShowFavorites(true);
+        setLoginRedirect(null);
+      } else if (loginRedirect === "mysites") {
+        setShowMySites(true);
+        setLoginRedirect(null);
+      }
     };
 
     loadUserData();
@@ -162,24 +191,30 @@ export default function App() {
   useEffect(() => {
     const handle = () => {
       const h = window.location.hash;
-      setShowMyPage(h === '#mypage');
-      setShowFavorites(h === '#bookmarks');
-      setShowSignup(h === '#signup');
-      setShowPasswordReset(h === '#find-account');
-      setShowSiteRequest(h === '#request');
-      setShowMySites(h === '#mysites');
-      setShowReorder(h === '#reorder');
+      setShowMyPage(h === "#mypage");
+      setShowFavorites(h === "#bookmarks");
+      setShowSignup(h === "#signup");
+      setShowPasswordReset(h === "#find-account");
+      setShowSiteRequest(h === "#request");
+      setShowMySites(h === "#mysites");
+      setShowReorder(h === "#reorder");
       setFooterPage(
-        h === '#guide' ? 'guide' :
-        h === '#faq' ? 'faq' :
-        h === '#privacy' ? 'privacy' :
-        h === '#terms' ? 'terms' :
-        h === '#cookie' ? 'cookie' : null
+        h === "#guide"
+          ? "guide"
+          : h === "#faq"
+            ? "faq"
+            : h === "#privacy"
+              ? "privacy"
+              : h === "#terms"
+                ? "terms"
+                : h === "#cookie"
+                  ? "cookie"
+                  : null,
       );
-      if (!h || h === '#') setShowAuthModal(false);
+      if (!h || h === "#") setShowAuthModal(false);
     };
-    window.addEventListener('popstate', handle);
-    return () => window.removeEventListener('popstate', handle);
+    window.addEventListener("popstate", handle);
+    return () => window.removeEventListener("popstate", handle);
   }, []);
 
   // ============================================================
@@ -197,7 +232,6 @@ export default function App() {
   // ============================================================
   // 즐겨찾기 토글 — 나만의 사이트
   // ============================================================
-
 
   // ============================================================
   // 데이터 결합 + 커스텀 카테고리 순서
@@ -237,22 +271,29 @@ export default function App() {
             !lowerSearch ||
             item.name.toLowerCase().includes(lowerSearch) ||
             (item.note && item.note.toLowerCase().includes(lowerSearch)) ||
-            (item.tags && item.tags.toLowerCase().includes(lowerSearch))
+            (item.tags && item.tags.toLowerCase().includes(lowerSearch)),
         ),
       }))
       .filter((group) => group.items.length > 0);
 
     // 가나다순 / 최근 등록순
-    if (sortMode !== 'category') {
+    if (sortMode !== "category") {
       const allItems = result.flatMap((g) => g.items);
-      if (sortMode === 'asc') allItems.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-      else if (sortMode === 'desc') allItems.sort((a, b) => b.name.localeCompare(a.name, 'ko'));
-      else if (sortMode === 'recent') allItems.sort((a, b) => b.id - a.id);
+      if (sortMode === "asc")
+        allItems.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      else if (sortMode === "desc")
+        allItems.sort((a, b) => b.name.localeCompare(a.name, "ko"));
+      else if (sortMode === "recent") allItems.sort((a, b) => b.id - a.id);
 
-      const label = sortMode === 'asc' ? '가나다순 (ㄱ→ㅎ)'
-        : sortMode === 'desc' ? '가나다순 (ㅎ→ㄱ)'
-        : '최근 등록순';
-      result = [{ id: 0, name: label, slug: 'sorted', sort_order: 0, items: allItems }];
+      const label =
+        sortMode === "asc"
+          ? "가나다순 (ㄱ→ㅎ)"
+          : sortMode === "desc"
+            ? "가나다순 (ㅎ→ㄱ)"
+            : "최근 등록순";
+      result = [
+        { id: 0, name: label, slug: "sorted", sort_order: 0, items: allItems },
+      ];
     }
 
     return result;
@@ -261,7 +302,10 @@ export default function App() {
   // ============================================================
   // Intersection Observer (카테고리 탭 하이라이트)
   // ============================================================
-  const sectionSlugs = useMemo(() => websiteData.map((g) => g.slug), [websiteData]);
+  const sectionSlugs = useMemo(
+    () => websiteData.map((g) => g.slug),
+    [websiteData],
+  );
   const activeSectionId = useActiveSection(sectionSlugs);
   const isLoggedIn = !!userId;
   const scrollDirection = useScrollDirection();
@@ -271,128 +315,170 @@ export default function App() {
   const goTo = (page: string, setter: (v: boolean) => void) => {
     setSavedScrollY(window.scrollY);
     setter(true);
-    window.history.pushState({}, '', '#' + page);
+    window.history.pushState({}, "", "#" + page);
     window.scrollTo(0, 0);
   };
 
-  const goToFooter = (page: 'guide' | 'faq' | 'privacy' | 'terms' | 'cookie') => {
+  const goToFooter = (
+    page: "guide" | "faq" | "privacy" | "terms" | "cookie",
+  ) => {
     setSavedScrollY(window.scrollY);
     setFooterPage(page);
-    window.history.pushState({}, '', '#' + page);
+    window.history.pushState({}, "", "#" + page);
     window.scrollTo(0, 0);
   };
 
   const goHome = (setter: (v: boolean) => void) => {
     setter(false);
-    window.history.pushState({}, '', window.location.pathname);
+    window.history.pushState({}, "", window.location.pathname);
     setTimeout(() => window.scrollTo(0, savedScrollY), 50);
   };
 
   // ============================================================
   // 로딩 / 에러 화면
   // ============================================================
-  if (loading) return (
-    <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-pink-400 font-medium">로딩 중...</p>
+  if (loading)
+    return (
+      <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-pink-400 font-medium">로딩 중...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
 
-  if (error) return (
-    <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-red-500 font-bold text-lg mb-2">오류 발생</p>
-        <p className="text-slate-500">{error}</p>
-        <button onClick={() => window.location.reload()} className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors">다시 시도</button>
+  if (error)
+    return (
+      <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 font-bold text-lg mb-2">오류 발생</p>
+          <p className="text-slate-500">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   // ============================================================
   // 서브 페이지 렌더링
   // ============================================================
-  if (showSignup) return (
-    <SignupPage
-      onBack={() => { goHome(setShowSignup); setShowAuthModal(true); }}
-      onComplete={() => { goHome(setShowSignup); window.location.reload(); }}
-    />
-  );
+  if (showSignup)
+    return (
+      <SignupPage
+        onBack={() => {
+          goHome(setShowSignup);
+          setShowAuthModal(true);
+        }}
+        onComplete={() => {
+          goHome(setShowSignup);
+          window.location.reload();
+        }}
+      />
+    );
 
-  if (showPasswordReset) return (
-    <PasswordResetPage
-      onBack={() => { goHome(setShowPasswordReset); setShowAuthModal(true); }}
-      onComplete={() => { goHome(setShowPasswordReset); setShowAuthModal(true); }}
-    />
-  );
+  if (showPasswordReset)
+    return (
+      <PasswordResetPage
+        onBack={() => {
+          goHome(setShowPasswordReset);
+          setShowAuthModal(true);
+        }}
+        onComplete={() => {
+          goHome(setShowPasswordReset);
+          setShowAuthModal(true);
+        }}
+      />
+    );
 
-  if (showMyPage) return (
-    <MyPage
-      profile={profile} userEmail={userEmail} authProvider={authProvider}
-      onBack={() => goHome(setShowMyPage)}
-      onProfileUpdate={(p) => setProfile(p)}
-    />
-  );
+  if (showMyPage)
+    return (
+      <MyPage
+        profile={profile}
+        userEmail={userEmail}
+        authProvider={authProvider}
+        onBack={() => goHome(setShowMyPage)}
+        onProfileUpdate={(p) => setProfile(p)}
+      />
+    );
 
-  if (showFavorites) return (
-    <FavoritesPage
-      websiteData={websiteData}
-      favoriteIds={favoriteIds}
-      userId={userId}
-      onToggleFavorite={handleToggleFavorite}
-      onBack={() => goHome(setShowFavorites)}
-    />
-  );
+  if (showFavorites)
+    return (
+      <FavoritesPage
+        websiteData={websiteData}
+        favoriteIds={favoriteIds}
+        userId={userId}
+        onToggleFavorite={handleToggleFavorite}
+        onBack={() => goHome(setShowFavorites)}
+      />
+    );
 
-  if (showSiteRequest) return (
-    <SiteRequestPage
-      categories={categories} userId={userId}
-      onBack={() => goHome(setShowSiteRequest)}
-    />
-  );
+  if (showSiteRequest)
+    return (
+      <SiteRequestPage
+        categories={categories}
+        userId={userId}
+        onBack={() => goHome(setShowSiteRequest)}
+      />
+    );
 
-  if (showMySites && userId) return (
-    <MySitesPage userId={userId} onBack={() => goHome(setShowMySites)} />
-  );
+  if (showMySites && userId)
+    return (
+      <MySitesPage userId={userId} onBack={() => goHome(setShowMySites)} />
+    );
 
-  if (showReorder) return (
-    <CategoryReorderPage
-      categories={websiteData.map((g) => ({ id: g.id, name: g.name, slug: g.slug }))}
-      onBack={() => goHome(setShowReorder)}
-      onSave={(ids) => setCustomCategoryOrder(ids)}
-    />
-  );
+  if (showReorder)
+    return (
+      <CategoryReorderPage
+        categories={websiteData.map((g) => ({
+          id: g.id,
+          name: g.name,
+          slug: g.slug,
+        }))}
+        onBack={() => goHome(setShowReorder)}
+        onSave={(ids) => setCustomCategoryOrder(ids)}
+      />
+    );
 
-  if (footerPage) return (
-    <FooterPages
-      page={footerPage}
-      onBack={() => {
-        setFooterPage(null);
-        window.history.pushState({}, '', window.location.pathname);
-        setTimeout(() => window.scrollTo(0, savedScrollY), 50);
-      }}
-    />
-  );
+  if (footerPage)
+    return (
+      <FooterPages
+        page={footerPage}
+        onBack={() => {
+          setFooterPage(null);
+          window.history.pushState({}, "", window.location.pathname);
+          setTimeout(() => window.scrollTo(0, savedScrollY), 50);
+        }}
+      />
+    );
 
   // ============================================================
   // 메인 UI
   // ============================================================
   return (
     <div className="bg-[#FFF5F7] text-slate-800 selection:bg-pink-100 selection:text-pink-600 min-h-screen">
-
       {/* 앱 내 브라우저 안내 배너 */}
       {/kakaotalk|instagram|fbav|line|naver/i.test(navigator.userAgent) && (
-        <div className="fixed top-0 inset-x-0 z-[200] bg-yellow-50 border-b border-yellow-200 px-4 py-2.5 text-center" id="inapp-banner">
+        <div
+          className="fixed top-0 inset-x-0 z-[200] bg-yellow-50 border-b border-yellow-200 px-4 py-2.5 text-center"
+          id="inapp-banner"
+        >
           <p className="text-xs text-yellow-800 font-medium">
             앱 내 브라우저에서는 일부 기능이 제한됩니다.
             <button
               onClick={() => {
                 const ua = navigator.userAgent.toLowerCase();
                 if (/kakaotalk/i.test(ua)) {
-                  window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+                  window.location.href =
+                    "kakaotalk://web/openExternal?url=" +
+                    encodeURIComponent(window.location.href);
                 } else {
-                  alert('우측 상단 메뉴(⋯)에서\n"기본 브라우저로 열기"를 선택해주세요.');
+                  alert(
+                    '우측 상단 메뉴(⋯)에서\n"기본 브라우저로 열기"를 선택해주세요.',
+                  );
                 }
               }}
               className="ml-2 text-yellow-600 font-bold underline"
@@ -407,27 +493,42 @@ export default function App() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onSignupClick={() => goTo('signup', setShowSignup)}
-        onFindAccountClick={() => goTo('find-account', setShowPasswordReset)}
+        onSignupClick={() => goTo("signup", setShowSignup)}
+        onFindAccountClick={() => goTo("find-account", setShowPasswordReset)}
       />
 
       {/* 네비게이션 — 스크롤 내리면 숨김 */}
-      <nav className={`fixed inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm transition-transform duration-300 ${
-        scrollDirection === 'down' ? '-translate-y-full' : 'translate-y-0'
-      } ${/kakaotalk|instagram|fbav|line|naver/i.test(navigator.userAgent) ? 'top-10' : 'top-0'}`}>
+      <nav
+        className={`fixed inset-x-0 z-[100] glass-nav border-b border-pink-100 shadow-sm transition-transform duration-300 ${
+          scrollDirection === "down" ? "-translate-y-full" : "translate-y-0"
+        } ${/kakaotalk|instagram|fbav|line|naver/i.test(navigator.userAgent) ? "top-10" : "top-0"}`}
+      >
         <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
-
           {/* 로고 + 검색 + 버튼 */}
           <div className="flex items-center gap-2 md:gap-4">
             {/* 로고 */}
-            <div className="flex items-center gap-2 cursor-pointer shrink-0"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <div
+              className="flex items-center gap-2 cursor-pointer shrink-0"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
               <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-lg md:rounded-xl flex items-center justify-center text-white shadow-lg shadow-pink-200">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
               </div>
-              <h1 className="text-xl md:text-2xl font-black text-pink-900 tracking-tighter lowercase">curit</h1>
+              <h1 className="text-xl md:text-2xl font-black text-pink-900 tracking-tighter lowercase">
+                curit
+              </h1>
             </div>
 
             {/* 검색바 — 모바일: 아이콘, 클릭 시 확장 / 데스크탑: 항상 표시 */}
@@ -440,8 +541,19 @@ export default function App() {
               onClick={() => setSearchExpanded(!searchExpanded)}
               className="md:hidden p-2 rounded-xl hover:bg-pink-50 transition-colors text-pink-500"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </button>
 
@@ -450,16 +562,25 @@ export default function App() {
               isLoggedIn={isLoggedIn}
               onLoginClick={() => setShowAuthModal(true)}
               onMyPageClick={() => {
-                if (isLoggedIn) goTo('mypage', setShowMyPage);
-                else { setLoginRedirect('mypage'); setShowAuthModal(true); }
+                if (isLoggedIn) goTo("mypage", setShowMyPage);
+                else {
+                  setLoginRedirect("mypage");
+                  setShowAuthModal(true);
+                }
               }}
               onBookmarksClick={() => {
-                if (isLoggedIn) goTo('bookmarks', setShowFavorites);
-                else { setLoginRedirect('bookmarks'); setShowAuthModal(true); }
+                if (isLoggedIn) goTo("bookmarks", setShowFavorites);
+                else {
+                  setLoginRedirect("bookmarks");
+                  setShowAuthModal(true);
+                }
               }}
               onMySitesClick={() => {
-                if (isLoggedIn) goTo('mysites', setShowMySites);
-                else { setLoginRedirect('mysites'); setShowAuthModal(true); }
+                if (isLoggedIn) goTo("mysites", setShowMySites);
+                else {
+                  setLoginRedirect("mysites");
+                  setShowAuthModal(true);
+                }
               }}
             />
           </div>
@@ -476,35 +597,50 @@ export default function App() {
             <SortDropdown
               value={sortMode}
               onChange={setSortMode}
-              onReorderClick={() => goTo('reorder', setShowReorder)}
+              onReorderClick={() => goTo("reorder", setShowReorder)}
             />
-            {sortMode !== 'category' && (
+            {sortMode !== "category" && (
               <span className="text-xs text-pink-300 font-medium">
-                {sortMode === 'asc' ? 'ㄱ→ㅎ 순으로 정렬됨'
-                  : sortMode === 'desc' ? 'ㅎ→ㄱ 순으로 정렬됨'
-                  : '최근 등록된 순으로 정렬됨'}
+                {sortMode === "asc"
+                  ? "ㄱ→ㅎ 순으로 정렬됨"
+                  : sortMode === "desc"
+                    ? "ㅎ→ㄱ 순으로 정렬됨"
+                    : "최근 등록된 순으로 정렬됨"}
               </span>
             )}
             {/* 카테고리 탭 토글 (카테고리순일 때만) */}
-            {sortMode === 'category' && (
+            {sortMode === "category" && (
               <button
                 onClick={() => setShowCategoryTabs(!showCategoryTabs)}
                 className="ml-auto md:hidden flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold text-pink-400 hover:bg-pink-50 transition-colors"
               >
                 카테고리
-                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-                  className={`transition-transform ${showCategoryTabs ? 'rotate-180' : ''}`}>
-                  <path d="M6 9l6 6 6-6"/>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  className={`transition-transform ${showCategoryTabs ? "rotate-180" : ""}`}
+                >
+                  <path d="M6 9l6 6 6-6" />
                 </svg>
               </button>
             )}
           </div>
 
           {/* 카테고리 탭 — 데스크탑: 항상 표시, 모바일: 토글 */}
-          {sortMode === 'category' && (
-            <div className={`${showCategoryTabs ? 'block' : 'hidden'} md:block`}>
+          {sortMode === "category" && (
+            <div
+              className={`${showCategoryTabs ? "block" : "hidden"} md:block`}
+            >
               <CategoryTabs
-                categories={websiteData.map((g) => ({ name: g.name, slug: g.slug }))}
+                categories={websiteData.map((g) => ({
+                  name: g.name,
+                  slug: g.slug,
+                }))}
                 activeSectionId={activeSectionId}
               />
             </div>
@@ -516,14 +652,25 @@ export default function App() {
       <header className="pt-36 md:pt-72 pb-12 md:pb-20 px-4 md:px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 mb-8 px-5 py-2 bg-pink-100/50 rounded-full text-pink-600">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="animate-pulse">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="animate-pulse"
+            >
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
             </svg>
-            <span className="text-xs font-black tracking-widest uppercase">Curated Links, Smarter Workflow</span>
+            <span className="text-xs font-black tracking-widest uppercase">
+              Curated Links, Smarter Workflow
+            </span>
           </div>
           <h2 className="text-3xl md:text-6xl font-black text-slate-900 tracking-tight mb-6 md:mb-8 leading-[1.1]">
             쓸만한 사이트, <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-rose-400">여기 다 큐릿했어요.</span>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-rose-400">
+              여기 다 큐릿했어요.
+            </span>
           </h2>
           <p className="text-pink-400 text-lg font-medium leading-relaxed">
             디자인, 취업, 부동산, 재테크까지 — 흩어진 좋은 사이트들을 한곳에.
@@ -533,6 +680,28 @@ export default function App() {
           <p className="text-pink-300/60 text-sm mt-4">
             curit = curation + it — "좋은 사이트를 골라 모으다"
           </p>
+
+          {/* 사이트 추천 CTA */}
+          <button
+            onClick={() => goTo("request", setShowSiteRequest)}
+            className="mt-8 inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-pink-200 text-pink-500 rounded-full text-sm font-bold hover:bg-pink-50 hover:border-pink-300 transition-all"
+          >
+            💡 유용한 사이트를 알고 있나요?
+            <span className="text-pink-400">추천하기</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -541,24 +710,48 @@ export default function App() {
         {filteredData.length === 0 ? (
           <div className="py-40 text-center">
             <div className="w-24 h-24 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-8 text-pink-200">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
             </div>
-            <h3 className="text-2xl font-black text-slate-900">앗, 아직 큐릿되지 않은 키워드예요.</h3>
-            <p className="text-pink-300 mt-3 font-medium">다른 키워드로 검색하거나 카테고리를 둘러보세요.</p>
+            <h3 className="text-2xl font-black text-slate-900">
+              앗, 아직 큐릿되지 않은 키워드예요.
+            </h3>
+            <p className="text-pink-300 mt-3 font-medium">
+              다른 키워드로 검색하거나 카테고리를 둘러보세요.
+            </p>
           </div>
         ) : (
           filteredData.map((group) => (
-            <section key={group.id} id={group.slug} className="scroll-mt-32 md:scroll-mt-56 mt-12 md:mt-20">
+            <section
+              key={group.id}
+              id={group.slug}
+              className="scroll-mt-32 md:scroll-mt-56 mt-12 md:mt-20"
+            >
               <div className="flex items-center gap-4 mb-10 pb-4 border-b border-pink-100">
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight">{group.name}</h3>
-                <span className="text-pink-300 text-sm font-bold">{group.items.length} 리소스</span>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+                  {group.name}
+                </h3>
+                <span className="text-pink-300 text-sm font-bold">
+                  {group.items.length} 리소스
+                </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                 {group.items.map((item) => (
                   <SiteCard
-                    key={item.id} item={item}
+                    key={item.id}
+                    item={item}
                     isFavorited={favoriteIds.has(item.id)}
                     userId={userId}
                     onToggleFavorite={handleToggleFavorite}
@@ -569,6 +762,40 @@ export default function App() {
             </section>
           ))
         )}
+
+        {/* 사이트 추천 배너 */}
+        <div className="mt-24 mb-8">
+          <div className="bg-white rounded-3xl border border-pink-100 p-10 text-center">
+            <div className="w-14 h-14 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+              💡
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mb-2">
+              여기에 없는 유용한 사이트를 알고 계신가요?
+            </h3>
+            <p className="text-sm text-slate-400 mb-6">
+              추천하신 사이트는 검토 후 모든 사용자에게 공개됩니다.
+            </p>
+            <button
+              onClick={() => goTo("request", setShowSiteRequest)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-pink-500 text-white rounded-2xl text-sm font-bold hover:bg-pink-600 transition-colors"
+            >
+              사이트 추천하기
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </main>
 
       <ScrollToTopButton />
@@ -580,33 +807,92 @@ export default function App() {
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">서비스</h4>
               <ul className="space-y-2.5">
-                <li><button onClick={() => goTo('request', setShowSiteRequest)} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사이트 등록 신청</button></li>
-                <li><button onClick={() => goToFooter('guide')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">사용 가이드</button></li>
-                <li><button onClick={() => goToFooter('faq')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">자주 묻는 질문</button></li>
+                <li>
+                  <button
+                    onClick={() => goTo("request", setShowSiteRequest)}
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    사이트 추천하기
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => goToFooter("guide")}
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    사용 가이드
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => goToFooter("faq")}
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    자주 묻는 질문
+                  </button>
+                </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold text-sm text-slate-900 mb-4">법적 고지</h4>
+              <h4 className="font-bold text-sm text-slate-900 mb-4">
+                법적 고지
+              </h4>
               <ul className="space-y-2.5">
-                <li><button onClick={() => goToFooter('privacy')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">개인정보 처리방침</button></li>
-                <li><button onClick={() => goToFooter('terms')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">이용약관</button></li>
-                <li><button onClick={() => goToFooter('cookie')} className="text-sm text-slate-400 hover:text-pink-500 transition-colors">쿠키 정책</button></li>
+                <li>
+                  <button
+                    onClick={() => goToFooter("privacy")}
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    개인정보 처리방침
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => goToFooter("terms")}
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    이용약관
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => goToFooter("cookie")}
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    쿠키 정책
+                  </button>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">문의</h4>
               <ul className="space-y-2.5">
-                <li><a href="mailto:curit.help@gmail.com" className="text-sm text-slate-400 hover:text-pink-500 transition-colors">curit.help@gmail.com</a></li>
+                <li>
+                  <a
+                    href="mailto:curit.help@gmail.com"
+                    className="text-sm text-slate-400 hover:text-pink-500 transition-colors"
+                  >
+                    curit.help@gmail.com
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-sm text-slate-900 mb-4">curit</h4>
-              <p className="text-sm text-slate-400 leading-relaxed">쓸만한 사이트,<br/>여기 다 큐릿했어요.</p>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                쓸만한 사이트,
+                <br />
+                여기 다 큐릿했어요.
+              </p>
             </div>
           </div>
           <div className="border-t border-pink-50 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-pink-300 text-xs font-bold">© 2026 curit. All rights reserved.</p>
-            <p className="text-pink-200 text-xs">당신의 북마크를 큐레이션합니다.</p>
+            <p className="text-pink-300 text-xs font-bold">
+              © 2026 curit. All rights reserved.
+            </p>
+            <p className="text-pink-200 text-xs">
+              당신의 북마크를 큐레이션합니다.
+            </p>
           </div>
         </div>
       </footer>

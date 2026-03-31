@@ -343,6 +343,17 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
 
       {/* ============ 메인 콘텐츠 ============ */}
       <main className="max-w-4xl mx-auto px-4 pt-24 pb-40">
+        {/* 안내 배너 */}
+        <div className="bg-pink-50 rounded-2xl p-5 mb-6 text-center">
+          <span className="text-2xl mb-2 block">🔒</span>
+          <p className="text-sm font-bold text-slate-900 mb-1">
+            나만 보는 사이트 보관함
+          </p>
+          <p className="text-xs text-slate-500">
+            여기에 추가한 사이트는 본인만 볼 수 있어요.
+          </p>
+        </div>
+
         {/* 상단 버튼 */}
         <div className="flex items-center gap-3 mb-8">
           <button
