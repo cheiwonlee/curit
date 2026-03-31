@@ -15,6 +15,7 @@
 import { useState, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface BulkUploadModalProps {
   userId: string;
@@ -192,59 +193,68 @@ export default function BulkUploadModal({
   // ============================================================
   // 양식 다운로드
   // ============================================================
-  const downloadTemplate = () => {
-    // 헤더 + 예시 데이터
-    const data = [
-      ["사이트명", "사이트 링크", "카테고리", "설명"],
-      ["Google", "https://www.google.com", "기타", "세계 최대 검색엔진"],
-      ["Notion", "https://www.notion.so", "생산성", "올인원 워크스페이스"],
+  const downloadTemplate = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("사이트 목록");
+
+    // 열 설정
+    sheet.columns = [
+      { header: "사이트명 *", key: "name", width: 22 },
+      { header: "사이트 링크 *", key: "url", width: 38 },
+      { header: "카테고리", key: "category", width: 18 },
+      { header: "설명", key: "note", width: 32 },
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(data);
+    // 헤더 스타일
+    sheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FF831843" } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFFFF5F7" },
+      };
+      cell.border = { bottom: { style: "thin", color: { argb: "FFEC4899" } } };
+    });
 
-    // 열 너비 설정
-    ws["!cols"] = [
-      { wch: 20 }, // 사이트명
-      { wch: 35 }, // 사이트 링크
-      { wch: 15 }, // 카테고리
-      { wch: 30 }, // 설명
-    ];
+    // 예시 데이터
+    sheet.addRow([
+      "Google",
+      "https://www.google.com",
+      "기타",
+      "세계 최대 검색엔진",
+    ]);
+    sheet.addRow([
+      "Notion",
+      "https://www.notion.so",
+      "생산성",
+      "올인원 워크스페이스",
+    ]);
 
-    // 카테고리 드롭다운 (100행까지)
-    const categories = [
-      "미분류",
-      ...[
-        "디자인",
-        "개발",
-        "마케팅",
-        "취업",
-        "교육",
-        "부동산",
-        "재테크",
-        "생산성",
-        "엔터테인먼트",
-        "기타",
-      ],
-    ];
-    const formulaList = '"' + categories.join(",") + '"';
+    // 카테고리 드롭다운 (2~101행)
+    const categories =
+      "미분류,디자인,개발,마케팅,취업,교육,부동산,재테크,생산성,엔터테인먼트,기타";
+    for (let i = 2; i <= 101; i++) {
+      sheet.getCell(`C${i}`).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: [`"${categories}"`],
+        showErrorMessage: true,
+        errorTitle: "카테고리 선택",
+        error: "목록에서 선택하거나 직접 입력해주세요.",
+      };
+    }
 
-    ws["!dataValidations"] = {
-      list: [
-        {
-          sqref: "C2:C101",
-          type: "list",
-          formula1: formulaList,
-          showDropDown: true,
-          error: "목록에서 카테고리를 선택하거나 직접 입력해주세요.",
-          errorTitle: "카테고리 선택",
-        },
-      ],
-    };
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "사이트 목록");
-
-    XLSX.writeFile(wb, "curit-일괄업로드-양식.xlsx");
+    // 다운로드
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "curit-일괄업로드-양식.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ============================================================
@@ -875,8 +885,8 @@ export default function BulkUploadModal({
 
               <div className="flex gap-2 mt-4">
                 <button
-                  onClick={() => {
-                    downloadTemplate();
+                  onClick={async () => {
+                    await downloadTemplate();
                     setShowHelp(false);
                   }}
                   className="flex-1 py-2.5 bg-pink-50 text-pink-500 rounded-xl text-sm font-bold hover:bg-pink-100 transition-colors"
@@ -884,7 +894,7 @@ export default function BulkUploadModal({
                   양식 다운로드
                 </button>
                 <button
-                  onClick={() => setShowHelp(false)}
+                  onClick={async () => setShowHelp(false)}
                   className="flex-1 py-2.5 bg-pink-500 text-white rounded-xl text-sm font-bold hover:bg-pink-600 transition-colors"
                 >
                   확인
