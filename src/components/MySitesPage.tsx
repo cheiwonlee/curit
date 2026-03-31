@@ -298,6 +298,11 @@ export default function MySitesPage({ userId, onBack }: MySitesPageProps) {
   const handleBulkRecommend = async () => {
     if (selectedIds.size === 0) return;
 
+    const confirmed = confirm(
+      `선택한 ${selectedIds.size}개 사이트를 curit에 추천하시겠습니까?\n\n추천하신 사이트는 관리자 검토 후 curit에 등록되어 모든 사용자가 볼 수 있게 됩니다.`,
+    );
+    if (!confirmed) return;
+
     const selectedSites = sites.filter((s) => selectedIds.has(s.id));
 
     let success = 0;
